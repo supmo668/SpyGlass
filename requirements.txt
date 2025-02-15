@@ -1,0 +1,6 @@
+
+reflex==0.7.0
+aperturedb==0.4.4
+stytch==8.3.0
+requests==2.31.0
+python-dotenv==1.0.0
