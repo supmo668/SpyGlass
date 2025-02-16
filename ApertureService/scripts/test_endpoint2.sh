@@ -7,7 +7,7 @@ mkdir -p test-result
 timestamp=$(date +%Y%m%d_%H%M%S)
 
 # Test the analyze endpoint
-echo "Testing analyze endpoint..."
+echo -e "Testing analyze endpoint...\n"
 curl -X POST https://simple-lobster-morally.ngrok-free.app/analyze \
   -H "accept: application/json" \
   -H "Content-Type: application/json" \
@@ -17,4 +17,4 @@ curl -X POST https://simple-lobster-morally.ngrok-free.app/analyze \
     "k": 5
   }' | tee "test-result/analysis_${timestamp}.json"
 
-echo "result saved to test-result/analysis_${timestamp}.json"
+echo -e "\nResult saved to test-result/analysis_${timestamp}.json\n"

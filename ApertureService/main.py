@@ -2,7 +2,7 @@ import os
 import yaml
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 import logging
 import traceback
@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from langchain.output_parsers import PydanticOutputParser
 load_dotenv()
 
 # Initialize Weave
@@ -40,10 +41,16 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=[
+        "*"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],  # Allows all methods including OPTIONS preflight
+    allow_headers=[
+        "*"
+    ],
+    expose_headers=["*"],  # Expose all headers to the browser
+    max_age=86400,  # Cache preflight requests for 24 hours
 )
 
 # Initialize ApertureDB tools
@@ -109,14 +116,32 @@ async def analyze_business_opportunity(query: AnalysisInput) -> str:
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/analyze", response_model=TrendAnalysisResponse)
-async def analyze(query: AnalysisInput) -> TrendAnalysisResponse:
+@app.post("/analyze", response_model=Union[TrendAnalysisResponse, str])
+async def analyze(query: AnalysisInput) -> Union[TrendAnalysisResponse, str]:
     """
     API endpoint to analyze business opportunities and generate startup ideas.
-    Returns a trend analysis response.
+    Returns a trend analysis response or raw string if parsing fails.
     """
-    json_str = await analyze_business_opportunity(query)
-    return TrendAnalysisResponse.parse_raw(json_str)
+    try:
+        json_str = await analyze_business_opportunity(query)
+        
+        # Use LangChain's PydanticOutputParser
+        parser = PydanticOutputParser(pydantic_object=TrendAnalysisResponse)
+        try:
+            return parser.parse(json_str)
+        except Exception as e:
+            logger.error(f"Error parsing response with PydanticOutputParser: {str(e)}")
+            logger.error(f"Returning raw string instead")
+            # Return the raw string if parsing fails
+            return json_str
+            
+    except Exception as e:
+        logger.error(f"Error in analyze endpoint: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 @app.post("/index")
 async def index(file: UploadFile = File(...)) -> Dict[str, Any]:

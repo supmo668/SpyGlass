@@ -1,5 +1,5 @@
 model:
-  name: "mistralai/Mixtral-8x7B-Instruct-v0.1"
+  name: "google/gemma-2-27b-it"
   base_url: "https://api.together.xyz/v1"
   temperature: 0.7
   max_tokens: 2000
@@ -68,10 +68,10 @@ prompts:
     Requirements for each trend:
     - Name (under 50 chars)
     - Description (under 100 chars)
-    - Growth projections for 2025-2030 (as decimals 0-1)
+    - Growth projections for 2025-2030 (as positive integer percentages, e.g., 65 means 65%)
     - Startup opportunity description (under 100 chars)
-    - Week-over-week growth rate (as decimal)
-    - YC acceptance probability (as decimal)
+    - Week-over-week growth rate (as decimal between 0 and 1)
+    - YC acceptance probability (as decimal between 0 and 1)
     - Related trends (comma separated)
 
     Response must follow this exact format:

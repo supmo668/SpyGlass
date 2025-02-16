@@ -4,7 +4,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_together import ChatTogether
 from langchain.output_parsers import PydanticOutputParser
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from langgraph.graph import END, StateGraph, START
 import logging
 import traceback
@@ -49,16 +49,22 @@ class TrendOp(BaseModel):
     """Model for a trend operation analysis."""
     name: str = Field(description="Name of the trend")
     description: str = Field(description="Detailed description of the trend")
-    Year_2025: float = Field(description="Projected adoption/impact percentage for 2025 (0.0 to 1.0)")
-    Year_2026: float = Field(description="Projected adoption/impact percentage for 2026 (0.0 to 1.0)")
-    Year_2027: float = Field(description="Projected adoption/impact percentage for 2027 (0.0 to 1.0)")
-    Year_2028: float = Field(description="Projected adoption/impact percentage for 2028 (0.0 to 1.0)")
-    Year_2029: float = Field(description="Projected adoption/impact percentage for 2029 (0.0 to 1.0)")
-    Year_2030: float = Field(description="Projected adoption/impact percentage for 2030 (0.0 to 1.0)")
+    Year_2025: int = Field(description="Projected adoption/impact percentage for 2025 (positive integer)", gt=0)
+    Year_2026: int = Field(description="Projected adoption/impact percentage for 2026 (positive integer)", gt=0)
+    Year_2027: int = Field(description="Projected adoption/impact percentage for 2027 (positive integer)", gt=0)
+    Year_2028: int = Field(description="Projected adoption/impact percentage for 2028 (positive integer)", gt=0)
+    Year_2029: int = Field(description="Projected adoption/impact percentage for 2029 (positive integer)", gt=0)
+    Year_2030: int = Field(description="Projected adoption/impact percentage for 2030 (positive integer)", gt=0)
     Startup_Opportunity: str = Field(description="Detailed description of the startup opportunity related to this trend")
-    Growth_rate_WoW: float = Field(description="Week-over-week growth rate as a decimal (0.0 to 1.0)")
-    YC_chances: float = Field(description="Probability of YC investment success as a decimal (0.0 to 1.0)")
+    Growth_rate_WoW: float = Field(description="Week-over-week growth rate as a decimal (0.0 to 1.0)", ge=0.0, le=1.0)
+    YC_chances: float = Field(description="Probability of YC investment success as a decimal (0.0 to 1.0)", ge=0.0, le=1.0)
     Related_trends: str = Field(description="Comma-separated list of related trends")
+
+    @validator('Year_2025', 'Year_2026', 'Year_2027', 'Year_2028', 'Year_2029', 'Year_2030')
+    def validate_year(cls, v):
+        if v > 100:
+            raise ValueError('Year percentage must be less than or equal to 100')
+        return v
 
 class KTrendOps(BaseModel):
     """Container for multiple trend operations."""
@@ -148,24 +154,22 @@ async def _analyze_trends(state: AnalysisState) -> str:
             SystemMessage(content=config.get("prompts", {}).get("system", "")),
             HumanMessage(content=prompt.format(
                 format_instructions=format_instructions,
-                user_input=state.get("user_input", ""),  # Use user_input instead of focus_area
+                user_input=state.get("user_input", ""),
                 k=state.get("k", 10)
             ))
         ]
         
-        # Get response and validate format
+        # Get response
         response = await chat_model.ainvoke(messages)
         content = response.content
         
-        # Validate that we have exactly k trends
+        # Try parsing with PydanticOutputParser but continue even if it fails
         try:
-            parsed = trend_parser.parse(content)
-            if len(parsed.trends) != state.get("k", 10):
-                logger.warning(f"Expected {state.get('k', 10)} trends but got {len(parsed.trends)}")
-                # Let it continue as the format is still valid
+            trend_parser.parse(content)
+            logger.info("Successfully validated trend analysis output format")
         except Exception as parse_error:
-            logger.error(f"Error parsing trends: {str(parse_error)}")
-            # Still return content as the next step will handle parsing errors
+            logger.warning(f"Output format validation warning: {str(parse_error)}")
+            # Continue anyway as we'll return the raw string
         
         logger.debug(f"Trend analysis response: {content}")
         return content
@@ -423,6 +427,52 @@ workflow.add_edge("generate", END)
 
 # Compile graph
 graph: StateGraph = workflow.compile()
+
+from fastapi import HTTPException
+from pydantic import BaseModel
+
+class AnalysisInput(BaseModel):
+    user_input: str
+    k: int
+    generate_novel_ideas: bool
+
+async def analyze_business_opportunity(query: AnalysisInput) -> str:
+    """Analyze a business opportunity and return trend analysis."""
+    try:
+        # Extract parameters
+        user_input = query.user_input
+        focus_area = "business opportunities"
+        k = query.k
+        
+        # Log the request
+        logger.info(f"Received analysis request: {user_input}")
+        
+        # Run analysis and get result
+        result = await run_analysis(
+            user_input=user_input,
+            focus_area=focus_area,
+            generate_novel=query.generate_novel_ideas,
+            k=k
+        )
+        
+        # Clean up the result to ensure valid JSON
+        # Remove markdown code blocks and any surrounding text
+        result = result.strip()
+        if result.startswith('```json'):
+            result = result[7:]
+        elif result.startswith('```'):
+            result = result[3:]
+        if result.endswith('```'):
+            result = result[:-3]
+        result = result.strip()
+        
+        # Return the cleaned result string
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error processing analysis request: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 async def run_analysis(user_input: str, focus_area: str, generate_novel: bool = True, k: int = 10) -> str:
     """Run the multi-step analysis process using the state graph."""
