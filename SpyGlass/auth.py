@@ -11,8 +11,8 @@ class AuthState(BaseState):
     def handle_auth_callback(self):
         try:
             stytch_client = stytch.Client(
-                project_id="your-stytch-project-id",
-                secret="your-stytch-secret",
+                project_id=os.getenv("STYTCH_PROJECT_ID"),
+                secret=os.getenv("STYTCH_SECRET"),
                 environment="test"
             )
             session = stytch_client.sessions.authenticate({

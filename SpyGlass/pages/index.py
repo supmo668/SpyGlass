@@ -1,33 +1,44 @@
+"""The main page of the SpyGlass application."""
 import reflex as rx
-from .components import progress_indicator, report_card
-from .state import State
-from .workflow import AnalysisWorkflow
+import state
+import components
 
-
+@rx.page(route="/")
 def index() -> rx.Component:
-    return rx.container(
-        rx.heading("SpyGlass Analytics", size="8", margin_bottom="2rem"),
-        rx.hstack(
-            rx.input(
-                placeholder="Enter business trend query...",
-                on_change=State.set_query,
-                width="70%",
-                size="3"
+    """The main page of the application."""
+    return rx.center(
+        rx.vstack(
+            rx.heading("SpyGlass", size="1"),
+            rx.text("Your Business Intelligence Assistant", color="gray.500"),
+            components.progress_indicator(),
+            rx.form(
+                rx.input(
+                    placeholder="Ask me anything about your business...",
+                    on_change=state.State.set_query,
+                    value=state.State.query,
+                    width="100%",
+                ),
+                rx.button(
+                    "Ask",
+                    type="submit",
+                    is_loading=state.State.is_processing,
+                    width="100%",
+                ),
+                on_submit=state.State.start_processing,
+                width="100%",
             ),
-            rx.button("Analyze", on_click=AnalysisWorkflow.trigger_analysis),
-            justify="center",
-            margin_bottom="2rem"
-        ),
-        progress_indicator(),
-        rx.grid(
+            rx.cond(
+                state.State.error_message != "",
+                rx.text(state.State.error_message, color="red.500"),
+            ),
             rx.foreach(
-                State.public_reports,
-                lambda report: report_card(report)
+                state.State.public_reports,
+                components.report_card,
             ),
-            columns="3",
+            width="100%",
+            max_width="600px",
+            padding="4",
             spacing="4",
-            margin_top="2rem"
         ),
-        padding="2rem",
-        max_width="1200px"
+        width="100%",
     )

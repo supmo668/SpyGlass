@@ -1,0 +1,108 @@
+model:
+  name: Qwen/Qwen1.5-72B-Chat
+  base_url: "https://api.together.xyz/v1"
+  temperature: 0.7
+  max_tokens: 2000
+
+aperturedb:
+  tools:
+    - name: "search_similar_companies"
+      description: "Search for similar companies in the database based on description"
+      function:
+        name: "search_similar_companies"
+        description: "Find similar companies based on text description"
+        parameters:
+          type: "object"
+          properties:
+            description:
+              type: "string"
+              description: "Company or product description to search for"
+            limit:
+              type: "integer"
+              description: "Maximum number of results to return"
+              default: 5
+
+    - name: "search_market_data"
+      description: "Search for market data and trends in the database"
+      function:
+        name: "search_market_data"
+        description: "Find market data and trends based on keywords"
+        parameters:
+          type: "object"
+          properties:
+            keywords:
+              type: "string"
+              description: "Keywords to search for in market data"
+            limit:
+              type: "integer"
+              description: "Maximum number of results to return"
+              default: 5
+
+prompts:
+  system: |
+    You are a founder-minded AI assistant specialized in identifying business opportunities and trends.
+    Your analysis should be data-driven, focusing on growth potential and market dynamics.
+    Always think in terms of scalability, market size, and venture capital requirements.
+    You will perform analysis in multiple steps, each building upon the previous step's findings.
+    You have access to a database of market data and company information through ApertureDB.
+
+  steps:
+    - name: "trend_analysis"
+      instruction: |
+        Identify and analyze the 10 most influential growth trends by 2030.
+        Use the search_market_data function to find relevant market data and trends.
+        For each trend, provide:
+        1. Trend name and category (Technology/Social/Economic)
+        2. Current state and projected growth trajectory
+        3. Key drivers and potential barriers
+        4. Year-by-year growth projections from 2025 to 2030
+        
+        Format as a table:
+        | Trend | Category | 2025 | 2026 | 2027 | 2028 | 2029 | 2030 | Key Drivers | Barriers |
+
+    - name: "opportunity_analysis"
+      instruction: |
+        Based on the identified trends, analyze potential business opportunities.
+        Use the search_similar_companies function to find existing companies in similar spaces.
+        Focus on opportunities at the intersection of multiple trends.
+        For each opportunity:
+        1. Business model and value proposition
+        2. Target market size and growth potential
+        3. Required initial investment
+        4. Expected week-over-week growth rate
+        5. Contributing trends
+        
+        Format as a table:
+        | Opportunity | Business Model | Market Size | WoW Growth | Investment | Contributing Trends |
+
+    - name: "competitor_analysis"
+      instruction: |
+        For each identified business opportunity:
+        1. List existing startups in similar space
+        2. Calculate alignment score (0-100) based on:
+           - Market focus alignment
+           - Technical capability match
+           - Business model similarity
+        3. Identify key differentiators
+        
+        Format as a table:
+        | Opportunity | Existing Startup | Alignment Score | Key Differentiators |
+
+    - name: "final_analysis"
+      instruction: |
+        Compile a final analysis combining all previous insights.
+        Rank opportunities by potential (considering growth rate, YC acceptance probability, and competitive landscape).
+        
+        Format as a table:
+        | Opportunity | Growth Rate (WoW) | YC Probability | Market Size | Competitor Count | Alignment Risk | Contributing Trends |
+
+  user_template: |
+    Analyze the following business context with focus on {focus_area}:
+    {user_input}
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  title: "Aperture Business Opportunity Analysis Service"
+  description: "AI-powered service for analyzing business trends and opportunities"
+  version: "1.0.0"
