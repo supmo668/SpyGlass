@@ -1,4 +1,4 @@
-from typing import Annotated, Literal, Sequence, TypedDict, List, Dict, Any, Optional
+from typing import Annotated, Literal, Sequence, TypedDict, List, Dict, Any, Optional, Union
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
@@ -97,107 +97,78 @@ def save_analysis_result(result: Dict[str, Any], focus_area: str) -> str:
     logger.info(f"Saved analysis result to {filepath}")
     return filepath
 
-def check_analysis_quality(state: AnalysisState) -> Literal["generate", "refine"]:
-    """
-    Check if the analysis quality is sufficient or needs refinement.
-    Limits retries to prevent infinite recursion.
-    """
-    logger.debug("---CHECK ANALYSIS QUALITY---")
-    
+def check_analysis_quality(state: AnalysisState, retry_count: int = 0) -> Dict[str, Any]:
+    """Check the quality of the analysis and request refinement if needed."""
+    logger.info("---CHECK ANALYSIS QUALITY---")
     try:
-        messages: List[Any] = state["messages"]
-        last_message: Any = messages[-1]
-        analysis: str = last_message.content
-        retry_count: int = state.get("retry_count", 0)
+        messages: List[Any] = state.get("messages", [])
+        trends: List[Dict[str, Any]] = state.get("trends", [])
         
-        # Check retry limit
-        if retry_count >= 3:
-            logger.warning("Reached retry limit, proceeding with current analysis")
-            return "generate"
-        
-        # Check if we have valid trends
-        if not analysis:
-            logger.debug("No analysis found, but proceeding due to retry limit")
-            return "generate"
-        
-        # Try parsing trends
-        try:
-            trend_parser: PydanticOutputParser = PydanticOutputParser(pydantic_object=KTrendOps)
-            parsed: KTrendOps = trend_parser.parse(analysis)
-            if parsed and parsed.trends:
-                logger.debug(f"Successfully parsed {len(parsed.trends)} trends")
-                return "generate"
-        except Exception as e:
-            logger.debug(f"Failed to parse trends: {str(e)}")
-        
-        # Increment retry count
-        state["retry_count"] = retry_count + 1
-        
-        if retry_count < 2:  # Allow 2 retries
-            logger.debug(f"Requesting refinement (retry {retry_count + 1}/3)")
-            return "refine"
-        else:
-            logger.warning("Max retries reached, proceeding with current analysis")
-            return "generate"
+        if not trends and retry_count < 2:
+            new_state = state.copy()
+            new_state["retry_count"] = retry_count + 1
+            new_state["next"] = "analyze_trends"
+            return new_state
             
+        new_state = state.copy()
+        new_state["next"] = "analyze_opportunities"
+        return new_state
+        
     except Exception as e:
         logger.error(f"Error in quality check: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return "generate"  # On error, proceed rather than retry
+        return {"next": "analyze_opportunities", "error": str(e)}
 
-def analyze_trends(state: AnalysisState) -> AnalysisState:
-    """
-    Initial trend analysis step.
-    """
-    logger.info("---ANALYZE TRENDS---")
+async def _analyze_trends(state: AnalysisState) -> str:
+    """Analyze trends based on user input."""
     try:
-        messages: List[Any] = state["messages"]
-        k: int = state.get("k", 10)  # Get k from state
+        # Initialize model with ChatTogether using config
+        chat_model = ChatTogether(
+            model=config["model"]["name"],
+            temperature=config["model"]["temperature"],
+            max_tokens=config["model"]["max_tokens"],
+            together_api_key=os.environ['TOGETHERAI_API_KEY'],
+            base_url=config["model"]["base_url"],
+            max_retries=2,
+            timeout=120
+        )
         
-        # Get format instructions for k trends
-        trend_parser: PydanticOutputParser = PydanticOutputParser(pydantic_object=KTrendOps)
-        format_instructions: str = trend_parser.get_format_instructions()
+        # Initialize parser
+        trend_parser = PydanticOutputParser(pydantic_object=KTrendOps)
+        format_instructions = trend_parser.get_format_instructions()
         
-        # Get prompt from config
-        prompt: PromptTemplate = PromptTemplate(
+        # Create prompt
+        prompt = PromptTemplate(
             template=config.get("prompts", {}).get("trend_analysis", ""),
-            input_variables=["user_input", "format_instructions", "k"]
+            input_variables=["format_instructions", "user_input", "k"]
         )
         
         # Create messages
-        new_messages: List[Any] = [
-            SystemMessage(content=prompt.format(
-                user_input=messages[0].content,
+        messages = [
+            SystemMessage(content=config.get("prompts", {}).get("system", "")),
+            HumanMessage(content=prompt.format(
                 format_instructions=format_instructions,
-                k=k
-            )),
-            messages[0]  # Original user message
+                user_input=state.get("focus_area", "business opportunities"),
+                k=state.get("k", 10)
+            ))
         ]
         
-        # Get response
-        response: Any = model.invoke(new_messages)
+        # Get response and return content directly
+        response = await chat_model.ainvoke(messages)
         logger.debug(f"Trend analysis response: {response.content}")
-        
-        # Initialize retry count in state
-        if "retry_count" not in state:
-            state["retry_count"] = 0
-        
-        return {"messages": [*messages, response], "retry_count": state["retry_count"]}
+        return response.content
         
     except Exception as e:
-        logger.error(f"Error in trend analysis: {str(e)}")
+        logger.error(f"Error in analyze_trends: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        # Return empty response rather than failing
-        return {"messages": [*messages, SystemMessage(content="")], "retry_count": state.get("retry_count", 0)}
+        raise
 
-def analyze_opportunities(state: AnalysisState) -> AnalysisState:
-    """
-    Analyze opportunities based on trends.
-    """
+def analyze_opportunities(state: AnalysisState) -> Dict[str, Any]:
+    """Analyze opportunities based on trends."""
     logger.info("---ANALYZE OPPORTUNITIES---")
     try:
-        messages: List[Any] = state["messages"]
-        last_message: Any = messages[-1]  # Trend analysis
+        messages: List[Any] = state.get("messages", [])
+        trends: List[Dict[str, Any]] = state.get("trends", [])
         
         prompt: PromptTemplate = PromptTemplate(
             template=config.get("prompts", {}).get("opportunity_analysis", ""),
@@ -206,31 +177,33 @@ def analyze_opportunities(state: AnalysisState) -> AnalysisState:
         
         new_messages: List[Any] = [
             SystemMessage(content=prompt.format(
-                trend_analysis=last_message.content,
-                user_input=messages[0].content
+                trend_analysis=str(trends),
+                user_input=messages[0].content if messages else ""
             )),
-            messages[0]  # Original user message
+            messages[0] if messages else HumanMessage(content="")
         ]
         
         response: Any = model.invoke(new_messages)
         logger.debug(f"Opportunity analysis response: {response.content}")
         
-        return {"messages": [*messages, response]}
+        new_state = state.copy()
+        new_state["messages"] = [*messages, response]
+        new_state["opportunity_analysis"] = response.content
+        new_state["next"] = "competitors"
         
+        return new_state
+
     except Exception as e:
         logger.error(f"Error in opportunity analysis: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
+        return {"next": "competitors", "error": str(e)}
 
-def analyze_competitors(state: AnalysisState) -> AnalysisState:
-    """
-    Analyze competitors based on opportunities.
-    """
+def analyze_competitors(state: AnalysisState) -> Dict[str, Any]:
+    """Analyze competitors based on opportunities."""
     logger.info("---ANALYZE COMPETITORS---")
     try:
-        messages: List[Any] = state["messages"]
-        opportunity_message: Any = messages[-1]
-        trend_message: Any = messages[-2]
+        messages: List[Any] = state.get("messages", [])
+        opportunity_analysis: str = state.get("opportunity_analysis", "")
         
         prompt: PromptTemplate = PromptTemplate(
             template=config.get("prompts", {}).get("competitor_analysis", ""),
@@ -239,102 +212,150 @@ def analyze_competitors(state: AnalysisState) -> AnalysisState:
         
         new_messages: List[Any] = [
             SystemMessage(content=prompt.format(
-                opportunity_analysis=opportunity_message.content,
-                user_input=messages[0].content
+                opportunity_analysis=opportunity_analysis,
+                user_input=messages[0].content if messages else ""
             )),
-            messages[0]  # Original user message
+            messages[0] if messages else HumanMessage(content="")
         ]
         
         response: Any = model.invoke(new_messages)
         logger.debug(f"Competitor analysis response: {response.content}")
         
-        return {"messages": [*messages, response]}
+        new_state = state.copy()
+        new_state["messages"] = [*messages, response]
+        new_state["competitor_analysis"] = response.content
+        new_state["next"] = "generate"
         
+        return new_state
+
     except Exception as e:
         logger.error(f"Error in competitor analysis: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
+        return {"next": "generate", "error": str(e)}
+
+def generate_final(state: AnalysisState) -> Dict[str, Any]:
+    """Generate final analysis result."""
+    logger.info("---GENERATE FINAL ANALYSIS---")
+    try:
+        messages: List[Any] = state.get("messages", [])
+        trend_analysis: str = state.get("trend_analysis", "")
+        opportunity_analysis: str = state.get("opportunity_analysis", "")
+        competitor_analysis: str = state.get("competitor_analysis", "")
+        
+        prompt: PromptTemplate = PromptTemplate(
+            template=config.get("prompts", {}).get("final_analysis", ""),
+            input_variables=["trend_analysis", "opportunity_analysis", "competitor_analysis", "user_input"]
+        )
+        
+        new_messages: List[Any] = [
+            SystemMessage(content=prompt.format(
+                trend_analysis=trend_analysis,
+                opportunity_analysis=opportunity_analysis,
+                competitor_analysis=competitor_analysis,
+                user_input=messages[0].content if messages else ""
+            )),
+            messages[0] if messages else HumanMessage(content="")
+        ]
+        
+        response: Any = model.invoke(new_messages)
+        logger.debug(f"Final analysis response: {response.content}")
+        
+        new_state = state.copy()
+        new_state["messages"] = [*messages, response]
+        new_state["final_analysis"] = response.content
+        new_state["next"] = END
+        
+        return new_state
+
+    except Exception as e:
+        logger.error(f"Error in final analysis: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {"next": END, "error": str(e)}
 
 def extract_trends_from_message(message_content: str) -> List[Dict[str, Any]]:
-    """Extract trends from message content with improved logging and fallback handling."""
+    """Extract trends from message content with improved parsing and validation."""
     logger.debug(f"Extracting trends from message: {message_content[:200]}...")
     
     try:
-        # Try parsing with KTrendOps
-        parsed_content = KTrendOps.parse_raw(message_content)
-        trends = parsed_content.trends
-        
-        if not trends:
-            logger.warning("KTrendOps parsing succeeded but returned empty trends")
+        # Parse the JSON content first
+        content = json.loads(message_content)
+        if not isinstance(content, dict) or "trends" not in content:
+            logger.warning("Message content does not contain trends key")
             return [{"content": message_content, "type": "raw_content"}]
             
-        logger.info(f"Successfully extracted {len(trends)} trends")
-        return trends
+        # Filter out incomplete trends
+        valid_trends = []
+        required_fields = {
+            "name", "description", "Year_2025", "Year_2026", "Year_2027",
+            "Year_2028", "Year_2029", "Year_2030", "Startup_Opportunity",
+            "Growth_rate_WoW", "YC_chances", "Related_trends"
+        }
         
+        for trend in content["trends"]:
+            if all(field in trend for field in required_fields):
+                valid_trends.append(trend)
+            else:
+                logger.warning(f"Skipping incomplete trend: {trend.get('name', 'unknown')}")
+                
+        if not valid_trends:
+            logger.warning("No valid trends found after filtering")
+            return [{"content": message_content, "type": "raw_content"}]
+            
+        logger.info(f"Successfully extracted {len(valid_trends)} valid trends")
+        return valid_trends
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON content: {str(e)}")
+        return [{"content": message_content, "type": "raw_content"}]
     except Exception as e:
-        logger.error(f"Failed to parse trends with KTrendOps: {str(e)}")
-        # Fallback: Return the raw message content as a trend
+        logger.error(f"Unexpected error in trend extraction: {str(e)}")
         return [{"content": message_content, "type": "raw_content"}]
 
-def generate_final(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate final analysis result."""
+def generate_final_result(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate final analysis result using KTrendOps parser."""
+    logger.info("---GENERATE FINAL ANALYSIS---")
     try:
-        logger.debug("Starting generate_final")
-        messages = state.get("messages", [])
-        
-        # Debug log the messages
-        logger.debug(f"Number of messages to process: {len(messages)}")
-        for i, msg in enumerate(messages):
-            logger.debug(f"Message {i} type: {type(msg)}")
-            logger.debug(f"Message {i} content: {msg.content if hasattr(msg, 'content') else 'No content'}")
-        
-        # Convert messages to serializable format
-        serializable_messages = [
-            {
-                "role": msg.type if hasattr(msg, 'type') else 'unknown',
-                "content": msg.content if hasattr(msg, 'content') else '',
-                "additional_kwargs": msg.additional_kwargs if hasattr(msg, 'additional_kwargs') else {}
+        messages: List[Any] = state.get("messages", [])
+        if not messages:
+            logger.error("No messages found in state")
+            return {"error": "No messages found in state"}
+
+        # Initialize KTrendOps parser
+        trend_parser = PydanticOutputParser(pydantic_object=KTrendOps)
+        format_instructions = trend_parser.get_format_instructions()
+
+        # Get prompt from config
+        prompt = PromptTemplate(
+            template=config.get("prompts", {}).get("bi_report", ""),
+            input_variables=["format_instructions", "messages"]
+        )
+
+        # Create final analysis message
+        final_message = SystemMessage(content=prompt.format(
+            format_instructions=format_instructions,
+            messages=messages[-1].content if hasattr(messages[-1], 'content') else json.dumps(messages[-1])
+        ))
+
+        # Get response
+        response = model.invoke([*messages, final_message])
+        logger.debug(f"Final analysis response: {response.content}")
+
+        try:
+            # Parse response using KTrendOps
+            parsed_content = trend_parser.parse(response.content)
+            
+            # Convert trends to list of dicts using Pydantic's dict() method
+            return {
+                "trends": [trend.dict(exclude_none=True) for trend in parsed_content.trends]
             }
-            for msg in messages
-            if hasattr(msg, 'type') and hasattr(msg, 'content')
-        ]
-        
-        # Extract trends from the first AI message (trend analysis)
-        trends = []
-        for msg in messages:
-            if hasattr(msg, 'type') and msg.type == 'ai':
-                trends = extract_trends_from_message(msg.content)
-                if trends:
-                    break
-        
-        logger.debug(f"Extracted {len(trends)} trends")
-        
-        result = {
-            "messages": serializable_messages,
-            "trends": trends,
-            "trend_analysis": state.get("trend_analysis", ""),
-            "opportunity_analysis": state.get("opportunity_analysis", ""),
-            "competitor_analysis": state.get("competitor_analysis", ""),
-            "final_analysis": state.get("final_analysis", "")
-        }
-        
-        logger.debug("Saving analysis result")
-        save_analysis_result(result, state.get("focus_area", "business_opportunities"))
-        logger.info("Successfully generated and saved final analysis")
-        
-        return result
-        
+
+        except Exception as e:
+            logger.error(f"Error parsing final analysis: {str(e)}")
+            return {"error": f"Error parsing final analysis: {str(e)}"}
+
     except Exception as e:
         logger.error(f"Error in generate_final: {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        return {
-            "messages": [],
-            "trends": [],
-            "trend_analysis": f"Error during analysis: {str(e)}",
-            "opportunity_analysis": "Error during analysis",
-            "competitor_analysis": "Error during analysis",
-            "final_analysis": "Error during analysis"
-        }
+        return {"error": f"Error in generate_final: {str(e)}"}
 
 def save_analysis_result(result: Dict[str, Any], focus_area: str) -> None:
     """Save analysis result to file."""
@@ -365,7 +386,7 @@ def save_analysis_result(result: Dict[str, Any], focus_area: str) -> None:
 workflow: StateGraph = StateGraph(AnalysisState)
 
 # Add nodes
-workflow.add_node("analyze", analyze_trends)
+workflow.add_node("analyze", _analyze_trends)
 workflow.add_node("opportunities", analyze_opportunities)
 workflow.add_node("competitors", analyze_competitors)
 workflow.add_node("generate", generate_final)
@@ -378,8 +399,8 @@ workflow.add_conditional_edges(
     "analyze",
     check_analysis_quality,
     {
-        "generate": "opportunities",
-        "refine": "analyze"
+        "analyze_trends": "analyze",
+        "analyze_opportunities": "opportunities"
     }
 )
 
@@ -391,12 +412,12 @@ workflow.add_edge("generate", END)
 # Compile graph
 graph: StateGraph = workflow.compile()
 
-async def run_analysis(user_input: str, focus_area: str, generate_novel: bool = True, k: int = 10) -> Dict[str, Any]:
+async def run_analysis(user_input: str, focus_area: str, generate_novel: bool = True, k: int = 10) -> str:
     """Run the multi-step analysis process using the state graph."""
     try:
         # Ensure k is a valid integer at the start
         try:
-            k: int = max(1, min(50, int(k)))
+            k = max(1, min(50, int(k)))
         except (TypeError, ValueError):
             logger.warning(f"Invalid k value: {k}, using default k=10")
             k = 10
@@ -405,7 +426,7 @@ async def run_analysis(user_input: str, focus_area: str, generate_novel: bool = 
         logger.debug(f"User input: {user_input}")
         
         # Initialize state
-        initial_state: Dict[str, Any] = {
+        initial_state = {
             "messages": [HumanMessage(content=user_input)],
             "focus_area": focus_area,
             "user_input": user_input,
@@ -419,86 +440,8 @@ async def run_analysis(user_input: str, focus_area: str, generate_novel: bool = 
             "retry_count": 0
         }
         
-        # Create results directory if it doesn't exist
-        results_dir: str = os.path.join(os.path.dirname(__file__), "results")
-        os.makedirs(results_dir, exist_ok=True)
-        
-        # Generate unique run ID
-        timestamp: str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_id: str = uuid.uuid4().hex[:8]
-        
-        # Initialize results dictionary
-        run_results: Dict[str, Any] = {
-            "run_id": run_id,
-            "timestamp": timestamp,
-            "focus_area": focus_area,
-            "user_input": user_input,
-            "k": k,
-            "steps": [],
-            "final_output": None
-        }
-        
-        # Run the graph
-        logger.info("Invoking workflow graph")
-        final_output: Optional[Dict[str, Any]] = None
-        
-        # Stream and log outputs
-        for output in graph.stream(initial_state):
-            for key, value in output.items():
-                logger.debug(f"Output from node '{key}':")
-                logger.debug(value)
-                
-                # Save intermediate result with serializable message content
-                step_result: Dict[str, Any] = {
-                    "step": key,
-                    "output": {}
-                }
-                
-                if isinstance(value, dict):
-                    serializable_value = {}
-                    for k_val, v in value.items():
-                        if k_val == "messages":
-                            # Extract content and metadata from LangChain messages
-                            serializable_value[k_val] = [
-                                {
-                                    "role": msg.type if hasattr(msg, 'type') else 'unknown',
-                                    "content": msg.content if hasattr(msg, 'content') else '',
-                                    "additional_kwargs": msg.additional_kwargs if hasattr(msg, 'additional_kwargs') else {}
-                                }
-                                for msg in v if hasattr(msg, 'type') and hasattr(msg, 'content')
-                            ]
-                        else:
-                            serializable_value[k_val] = v
-                    step_result["output"] = serializable_value
-                
-                run_results["steps"].append(step_result)
-                final_output = value
-        
-        logger.info("Workflow graph execution completed")
-        
-        if not final_output:
-            logger.error("No final output generated from graph")
-            return {"error": "No output generated"}
-            
-        trends = []
-        for msg in final_output.get("messages", []):
-            if msg.get("content"):
-                extracted_trends = extract_trends_from_message(msg["content"])
-                if extracted_trends:
-                    trends.extend(extracted_trends)
-        
-        if not trends:
-            logger.warning("No trends extracted from any messages")
-            # Include the last message content if no trends were extracted
-            last_message = next((msg["content"] for msg in reversed(final_output.get("messages", [])) if msg.get("content")), None)
-            if last_message:
-                trends = [{"content": last_message, "type": "raw_content"}]
-        
-        logger.info(f"Analysis completed with {len(trends)} trends")
-        return {
-            "messages": final_output.get("messages", []),
-            "trends": trends
-        }
+        # Call analyze_trends and return response
+        return await _analyze_trends(initial_state)
         
     except Exception as e:
         logger.error(f"Error in run_analysis: {str(e)}")

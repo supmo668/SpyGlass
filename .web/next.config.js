@@ -1,7 +1,1 @@
-module.exports = {
-  basePath: "",
-  compress: true,
-  reactStrictMode: true,
-  trailingSlash: true,
-  output: "",
-};
+module.exports = {basePath: "", compress: true, trailingSlash: true, staticPageGenerationTimeout: 60};
