@@ -1,5 +1,5 @@
 model:
-  name: mistralai/Mixtral-8x7B-Instruct-v0.1
+  name: "mistralai/Mixtral-8x7B-Instruct-v0.1"
   base_url: "https://api.together.xyz/v1"
   temperature: 0.7
   max_tokens: 2000
@@ -46,55 +46,79 @@ prompts:
     You will perform analysis in multiple steps, each building upon the previous step's findings.
     You have access to a database of market data and company information through ApertureDB.
 
-  steps:
-    - name: "trend_analysis"
-      instruction: |
-        Identify and analyze the 10 most influential growth trends by 2030.
-        Use the search_market_data function to find relevant market data and trends.
-        For each trend, provide:
-        1. Trend name and category (Technology/Social/Economic)
-        2. Current state and projected growth trajectory
-        3. Key drivers and potential barriers
-        4. Year-by-year growth projections from 2025 to 2030
-        
-        Format as a table:
-        | Trend | Category | 2025 | 2026 | 2027 | 2028 | 2029 | 2030 | Key Drivers | Barriers |
+  trend_analysis: |
+    You are a trend analysis expert. Analyze the following business opportunity or focus area and provide EXACTLY {k} trends:
+    {user_input}
 
-    - name: "opportunity_analysis"
-      instruction: |
-        Based on the identified trends, analyze potential business opportunities.
-        Use the search_similar_companies function to find existing companies in similar spaces.
-        Focus on opportunities at the intersection of multiple trends.
-        For each opportunity:
-        1. Business model and value proposition
-        2. Target market size and growth potential
-        3. Required initial investment
-        4. Expected week-over-week growth rate
-        5. Contributing trends
-        
-        Format as a table:
-        | Opportunity | Business Model | Market Size | WoW Growth | Investment | Contributing Trends |
+    IMPORTANT: You must follow these format requirements EXACTLY:
+    {format_instructions}
 
-    - name: "competitor_analysis"
-      instruction: |
-        For each identified business opportunity:
-        1. List existing startups in similar space
-        2. Calculate alignment score (0-100) based on:
-           - Market focus alignment
-           - Technical capability match
-           - Business model similarity
-        3. Identify key differentiators
-        
-        Format as a table:
-        | Opportunity | Existing Startup | Alignment Score | Key Differentiators |
+    Your response MUST:
+    1. Contain EXACTLY {k} trends, no more, no less
+    2. Include ALL required fields for EACH trend
+    3. Express ALL percentages as decimals (0.0 to 1.0)
+    4. Make realistic projections for each year
+    5. Estimate growth rates and YC chances based on market data
+    6. Format each trend entry EXACTLY as specified above
+    7. Ensure each trend has a clear name and description
+    8. Use proper JSON formatting with all required fields
 
-    - name: "final_analysis"
-      instruction: |
-        Compile a final analysis combining all previous insights.
-        Rank opportunities by potential (considering growth rate, YC acceptance probability, and competitive landscape).
-        
-        Format as a table:
-        | Opportunity | Growth Rate (WoW) | YC Probability | Market Size | Competitor Count | Alignment Risk | Contributing Trends |
+    DO NOT include any additional text or explanations outside the required format.
+
+  opportunity_analysis: |
+    Based on the following trend analysis:
+    {trend_analysis}
+
+    Analyze potential business opportunities for:
+    {user_input}
+
+    Focus on:
+    1. Market size and growth potential
+    2. Revenue models and monetization strategies
+    3. Target customer segments
+    4. Unique value propositions
+    5. Initial go-to-market strategy
+
+    Format your response as a clear, structured analysis.
+
+  competitor_analysis: |
+    Based on the following opportunity analysis:
+    {opportunity_analysis}
+
+    Analyze the competitive landscape for:
+    {user_input}
+
+    Focus on:
+    1. Direct and indirect competitors
+    2. Their strengths and weaknesses
+    3. Market positioning
+    4. Barriers to entry
+    5. Competitive advantages
+
+    Format your response as a clear, structured analysis.
+
+  final_analysis: |
+    Based on the following analyses:
+    
+    Trend Analysis:
+    {trend_analysis}
+    
+    Opportunity Analysis:
+    {opportunity_analysis}
+    
+    Competitor Analysis:
+    {competitor_analysis}
+
+    Provide a comprehensive analysis for:
+    {user_input}
+
+    Include:
+    1. Most promising trends and their growth trajectories
+    2. Key opportunities and their potential impact
+    3. Competitive landscape and market dynamics
+    4. Recommended strategies and next steps
+
+    Format your response as a clear, structured analysis.
 
   user_template: |
     Analyze the following business context with focus on {focus_area}:
@@ -103,6 +127,6 @@ prompts:
 api:
   host: "0.0.0.0"
   port: 8000
-  title: "Aperture Business Opportunity Analysis Service"
-  description: "AI-powered service for analyzing business trends and opportunities"
+  title: "SpyGlass API"
+  description: "API for analyzing business opportunities and trends"
   version: "1.0.0"

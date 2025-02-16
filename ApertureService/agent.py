@@ -1,61 +1,54 @@
-from typing import List, Dict, Any, TypedDict, Annotated
-from langchain_core.prompts import ChatPromptTemplate
+from typing import Annotated, Literal, Sequence, TypedDict, List, Dict, Any, Optional
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
 from langchain_together import ChatTogether
-from langgraph.graph import END, StateGraph, START
-from langgraph.prebuilt import ToolNode
-import yaml
-import os
-import logging
-import traceback
-from datetime import datetime
-from tools import ApertureTools
-from langchain_core.documents import Document
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
+from langgraph.graph import END, StateGraph, START
+import logging
+import traceback
+import yaml
+import json
+import os
+from datetime import datetime
+import uuid
 
 # Configure logging
 logging.basicConfig(
+    filename='debug.log',
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
+# Load configuration
 try:
-    # Load configuration
-    logger.info("Loading configuration from config.yaml")
     with open("config.yaml", "r") as f:
-        config = yaml.safe_load(f)
+        config: Dict[str, Any] = yaml.safe_load(f)
 except Exception as e:
     logger.error(f"Failed to load config.yaml: {str(e)}")
     raise
 
+# Initialize model
 try:
-    # Initialize ApertureDB tools
-    logger.info("Initializing ApertureDB tools")
-    aperture_tools = ApertureTools()
-
-    # Initialize the LLM with TogetherAI
-    logger.info("Initializing TogetherAI model")
-    model = ChatTogether(
+    model: ChatTogether = ChatTogether(
         model=config["model"]["name"],
         temperature=config["model"]["temperature"],
         max_tokens=config["model"]["max_tokens"],
         together_api_key=os.environ['TOGETHERAI_API_KEY'],
+        base_url=config["model"]["base_url"],
         max_retries=2,
         timeout=120  # 2 minute timeout
     )
-
-    # Get the retriever tool
-    logger.info("Getting retriever tool")
-    tools = [aperture_tools.get_tool()]
 except Exception as e:
-    logger.error(f"Failed to initialize components: {str(e)}")
+    logger.error(f"Failed to initialize ChatTogether model: {str(e)}")
     raise
 
 class TrendOp(BaseModel):
     """Model for a trend operation analysis."""
-    Trend: str = Field(description="Name of the trend")
+    name: str = Field(description="Name of the trend")
+    description: str = Field(description="Detailed description of the trend")
     Year_2025: float = Field(description="Projected adoption/impact percentage for 2025 (0.0 to 1.0)")
     Year_2026: float = Field(description="Projected adoption/impact percentage for 2026 (0.0 to 1.0)")
     Year_2027: float = Field(description="Projected adoption/impact percentage for 2027 (0.0 to 1.0)")
@@ -67,8 +60,9 @@ class TrendOp(BaseModel):
     YC_chances: float = Field(description="Probability of YC investment success as a decimal (0.0 to 1.0)")
     Related_trends: str = Field(description="Comma-separated list of related trends")
 
-# Initialize the output parser
-trend_parser = PydanticOutputParser(pydantic_object=TrendOp)
+class KTrendOps(BaseModel):
+    """Container for multiple trend operations."""
+    trends: List[TrendOp] = Field(description="List of trend operations to analyze")
 
 class AnalysisState(TypedDict):
     """Type definition for analysis state."""
@@ -81,336 +75,431 @@ class AnalysisState(TypedDict):
     final_analysis: str
     current_step: int
     trends: List[Dict[str, Any]]
+    k: int
+    retry_count: int
 
-def trend_analysis(state: AnalysisState) -> AnalysisState:
-    """Analyze trends in the focus area."""
+def save_analysis_result(result: Dict[str, Any], focus_area: str) -> str:
+    """Save analysis result to a JSON file in the results directory."""
+    # Create results directory if it doesn't exist
+    results_dir: str = os.path.join(os.path.dirname(__file__), "results")
+    os.makedirs(results_dir, exist_ok=True)
+    
+    # Generate unique filename
+    timestamp: str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_id: str = uuid.uuid4().hex[:8]
+    filename: str = f"{timestamp}_{focus_area.lower().replace(' ', '_')}_{run_id}.json"
+    filepath: str = os.path.join(results_dir, filename)
+    
+    # Save result
+    with open(filepath, 'w') as f:
+        json.dump(result, f, indent=2)
+    
+    logger.info(f"Saved analysis result to {filepath}")
+    return filepath
+
+def check_analysis_quality(state: AnalysisState) -> Literal["generate", "refine"]:
+    """
+    Check if the analysis quality is sufficient or needs refinement.
+    Limits retries to prevent infinite recursion.
+    """
+    logger.debug("---CHECK ANALYSIS QUALITY---")
+    
     try:
-        logger.info("Starting trend analysis")
+        messages: List[Any] = state["messages"]
+        last_message: Any = messages[-1]
+        analysis: str = last_message.content
+        retry_count: int = state.get("retry_count", 0)
         
-        # Add format instructions from the TrendOp parser
-        format_instructions = trend_parser.get_format_instructions()
+        # Check retry limit
+        if retry_count >= 3:
+            logger.warning("Reached retry limit, proceeding with current analysis")
+            return "generate"
         
-        messages = [
-            SystemMessage(content=f"""You are a trend analysis expert. Analyze the following business opportunity or focus area:
-{state['focus_area']}
-{state['user_input']}
-
-Provide your analysis in the exact format specified below:
-{format_instructions}
-
-Remember to:
-1. Express all percentages as decimals (0.0 to 1.0)
-2. Make realistic projections for each year
-3. Estimate growth rates and YC chances based on market data
-"""),
-            HumanMessage(content=f"""
-            Focus Area: {state['focus_area']}
-            User Input: {state['user_input']}
+        # Check if we have valid trends
+        if not analysis:
+            logger.debug("No analysis found, but proceeding due to retry limit")
+            return "generate"
+        
+        # Try parsing trends
+        try:
+            trend_parser: PydanticOutputParser = PydanticOutputParser(pydantic_object=KTrendOps)
+            parsed: KTrendOps = trend_parser.parse(analysis)
+            if parsed and parsed.trends:
+                logger.debug(f"Successfully parsed {len(parsed.trends)} trends")
+                return "generate"
+        except Exception as e:
+            logger.debug(f"Failed to parse trends: {str(e)}")
+        
+        # Increment retry count
+        state["retry_count"] = retry_count + 1
+        
+        if retry_count < 2:  # Allow 2 retries
+            logger.debug(f"Requesting refinement (retry {retry_count + 1}/3)")
+            return "refine"
+        else:
+            logger.warning("Max retries reached, proceeding with current analysis")
+            return "generate"
             
-            Please analyze trends in this area. Use the search_business_reports tool to find relevant market data and trend information.
-            
-            {config["prompts"]["steps"][0]["instruction"]}
-            """)
+    except Exception as e:
+        logger.error(f"Error in quality check: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return "generate"  # On error, proceed rather than retry
+
+def analyze_trends(state: AnalysisState) -> AnalysisState:
+    """
+    Initial trend analysis step.
+    """
+    logger.info("---ANALYZE TRENDS---")
+    try:
+        messages: List[Any] = state["messages"]
+        k: int = state.get("k", 10)  # Get k from state
+        
+        # Get format instructions for k trends
+        trend_parser: PydanticOutputParser = PydanticOutputParser(pydantic_object=KTrendOps)
+        format_instructions: str = trend_parser.get_format_instructions()
+        
+        # Get prompt from config
+        prompt: PromptTemplate = PromptTemplate(
+            template=config.get("prompts", {}).get("trend_analysis", ""),
+            input_variables=["user_input", "format_instructions", "k"]
+        )
+        
+        # Create messages
+        new_messages: List[Any] = [
+            SystemMessage(content=prompt.format(
+                user_input=messages[0].content,
+                format_instructions=format_instructions,
+                k=k
+            )),
+            messages[0]  # Original user message
         ]
         
-        model_with_tools = model.bind_tools(tools)
-        response = model_with_tools.invoke(messages)
-        state["trend_analysis"] = response.content
-        state["messages"].append(response)
-        state["current_step"] = 1
+        # Get response
+        response: Any = model.invoke(new_messages)
+        logger.debug(f"Trend analysis response: {response.content}")
         
-        logger.info("Completed trend analysis")
-        logger.debug(f"Updated state: current_step={state['current_step']}")
-        return state
+        # Initialize retry count in state
+        if "retry_count" not in state:
+            state["retry_count"] = 0
+        
+        return {"messages": [*messages, response], "retry_count": state["retry_count"]}
+        
     except Exception as e:
         logger.error(f"Error in trend analysis: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
+        # Return empty response rather than failing
+        return {"messages": [*messages, SystemMessage(content="")], "retry_count": state.get("retry_count", 0)}
 
-def opportunity_analysis(state: AnalysisState) -> AnalysisState:
-    """Analyze business opportunities based on trends."""
+def analyze_opportunities(state: AnalysisState) -> AnalysisState:
+    """
+    Analyze opportunities based on trends.
+    """
+    logger.info("---ANALYZE OPPORTUNITIES---")
     try:
-        logger.info("Starting opportunity analysis")
-        logger.debug(f"Input state: trend_analysis length={len(state['trend_analysis'])}")
+        messages: List[Any] = state["messages"]
+        last_message: Any = messages[-1]  # Trend analysis
         
-        messages = [
-            SystemMessage(content=config["prompts"]["system"]),
-            HumanMessage(content=f"""
-            Focus Area: {state['focus_area']}
-            Previous Analysis: {state['trend_analysis']}
-            
-            Based on the trend analysis above, analyze business opportunities. Use the search_business_reports tool to find similar opportunities and market analyses.
-            
-            {config["prompts"]["steps"][1]["instruction"]}
-            """)
+        prompt: PromptTemplate = PromptTemplate(
+            template=config.get("prompts", {}).get("opportunity_analysis", ""),
+            input_variables=["trend_analysis", "user_input"]
+        )
+        
+        new_messages: List[Any] = [
+            SystemMessage(content=prompt.format(
+                trend_analysis=last_message.content,
+                user_input=messages[0].content
+            )),
+            messages[0]  # Original user message
         ]
         
-        model_with_tools = model.bind_tools(tools)
-        response = model_with_tools.invoke(messages)
-        state["opportunity_analysis"] = response.content
-        state["messages"].append(response)
-        state["current_step"] = 2
+        response: Any = model.invoke(new_messages)
+        logger.debug(f"Opportunity analysis response: {response.content}")
         
-        logger.info("Completed opportunity analysis")
-        logger.debug(f"Updated state: current_step={state['current_step']}")
-        return state
+        return {"messages": [*messages, response]}
+        
     except Exception as e:
         logger.error(f"Error in opportunity analysis: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
-def competitor_analysis(state: AnalysisState) -> AnalysisState:
-    """Analyze competitors based on opportunities."""
+def analyze_competitors(state: AnalysisState) -> AnalysisState:
+    """
+    Analyze competitors based on opportunities.
+    """
+    logger.info("---ANALYZE COMPETITORS---")
     try:
-        logger.info("Starting competitor analysis")
-        logger.debug(f"Input state: opportunity_analysis length={len(state['opportunity_analysis'])}")
+        messages: List[Any] = state["messages"]
+        opportunity_message: Any = messages[-1]
+        trend_message: Any = messages[-2]
         
-        messages = [
-            SystemMessage(content=config["prompts"]["system"]),
-            HumanMessage(content=f"""
-            Focus Area: {state['focus_area']}
-            Previous Analyses:
-            Trends: {state['trend_analysis']}
-            Opportunities: {state['opportunity_analysis']}
-            
-            Based on the analyses above, analyze competitors. Use the search_business_reports tool to find information about existing companies and their market positions.
-            
-            {config["prompts"]["steps"][2]["instruction"]}
-            """)
+        prompt: PromptTemplate = PromptTemplate(
+            template=config.get("prompts", {}).get("competitor_analysis", ""),
+            input_variables=["opportunity_analysis", "user_input"]
+        )
+        
+        new_messages: List[Any] = [
+            SystemMessage(content=prompt.format(
+                opportunity_analysis=opportunity_message.content,
+                user_input=messages[0].content
+            )),
+            messages[0]  # Original user message
         ]
         
-        model_with_tools = model.bind_tools(tools)
-        response = model_with_tools.invoke(messages)
-        state["competitor_analysis"] = response.content
-        state["messages"].append(response)
-        state["current_step"] = 3
+        response: Any = model.invoke(new_messages)
+        logger.debug(f"Competitor analysis response: {response.content}")
         
-        logger.info("Completed competitor analysis")
-        logger.debug(f"Updated state: current_step={state['current_step']}")
-        return state
+        return {"messages": [*messages, response]}
+        
     except Exception as e:
         logger.error(f"Error in competitor analysis: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
-def final_analysis(state: AnalysisState) -> AnalysisState:
-    """Generate final comprehensive analysis."""
+def extract_trends_from_message(message_content: str) -> List[Dict[str, Any]]:
+    """Extract trends from message content with improved logging and fallback handling."""
+    logger.debug(f"Extracting trends from message: {message_content[:200]}...")
+    
     try:
-        logger.info("Starting final analysis")
-        logger.debug(f"Input state: competitor_analysis length={len(state['competitor_analysis'])}")
+        # Try parsing with KTrendOps
+        parsed_content = KTrendOps.parse_raw(message_content)
+        trends = parsed_content.trends
         
-        messages = [
-            SystemMessage(content=config["prompts"]["system"]),
-            HumanMessage(content=f"""
-            Focus Area: {state['focus_area']}
-            Previous Analyses:
-            Trends: {state['trend_analysis']}
-            Opportunities: {state['opportunity_analysis']}
-            Competitors: {state['competitor_analysis']}
+        if not trends:
+            logger.warning("KTrendOps parsing succeeded but returned empty trends")
+            return [{"content": message_content, "type": "raw_content"}]
             
-            Compile a final comprehensive analysis. Use the search_business_reports tool to find additional supporting data for your conclusions.
-            
-            {config["prompts"]["steps"][3]["instruction"]}
-            """)
+        logger.info(f"Successfully extracted {len(trends)} trends")
+        return trends
+        
+    except Exception as e:
+        logger.error(f"Failed to parse trends with KTrendOps: {str(e)}")
+        # Fallback: Return the raw message content as a trend
+        return [{"content": message_content, "type": "raw_content"}]
+
+def generate_final(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate final analysis result."""
+    try:
+        logger.debug("Starting generate_final")
+        messages = state.get("messages", [])
+        
+        # Debug log the messages
+        logger.debug(f"Number of messages to process: {len(messages)}")
+        for i, msg in enumerate(messages):
+            logger.debug(f"Message {i} type: {type(msg)}")
+            logger.debug(f"Message {i} content: {msg.content if hasattr(msg, 'content') else 'No content'}")
+        
+        # Convert messages to serializable format
+        serializable_messages = [
+            {
+                "role": msg.type if hasattr(msg, 'type') else 'unknown',
+                "content": msg.content if hasattr(msg, 'content') else '',
+                "additional_kwargs": msg.additional_kwargs if hasattr(msg, 'additional_kwargs') else {}
+            }
+            for msg in messages
+            if hasattr(msg, 'type') and hasattr(msg, 'content')
         ]
         
-        model_with_tools = model.bind_tools(tools)
-        response = model_with_tools.invoke(messages)
-        state["final_analysis"] = response.content
-        state["messages"].append(response)
-        state["current_step"] = 4
+        # Extract trends from the first AI message (trend analysis)
+        trends = []
+        for msg in messages:
+            if hasattr(msg, 'type') and msg.type == 'ai':
+                trends = extract_trends_from_message(msg.content)
+                if trends:
+                    break
         
-        logger.info("Completed final analysis")
-        logger.debug(f"Updated state: current_step={state['current_step']}")
-        return state
+        logger.debug(f"Extracted {len(trends)} trends")
+        
+        result = {
+            "messages": serializable_messages,
+            "trends": trends,
+            "trend_analysis": state.get("trend_analysis", ""),
+            "opportunity_analysis": state.get("opportunity_analysis", ""),
+            "competitor_analysis": state.get("competitor_analysis", ""),
+            "final_analysis": state.get("final_analysis", "")
+        }
+        
+        logger.debug("Saving analysis result")
+        save_analysis_result(result, state.get("focus_area", "business_opportunities"))
+        logger.info("Successfully generated and saved final analysis")
+        
+        return result
+        
     except Exception as e:
-        logger.error(f"Error in final analysis: {str(e)}")
+        logger.error(f"Error in generate_final: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {
+            "messages": [],
+            "trends": [],
+            "trend_analysis": f"Error during analysis: {str(e)}",
+            "opportunity_analysis": "Error during analysis",
+            "competitor_analysis": "Error during analysis",
+            "final_analysis": "Error during analysis"
+        }
+
+def save_analysis_result(result: Dict[str, Any], focus_area: str) -> None:
+    """Save analysis result to file."""
+    try:
+        logger.debug("Starting save_analysis_result")
+        logger.debug(f"Result keys: {result.keys()}")
+        
+        # Create results directory if it doesn't exist
+        results_dir = os.path.join(os.path.dirname(__file__), "results")
+        os.makedirs(results_dir, exist_ok=True)
+        
+        # Generate filename with timestamp and focus area
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{timestamp}_{focus_area.lower().replace(' ', '_')}_{uuid.uuid4().hex[:8]}.json"
+        filepath = os.path.join(results_dir, filename)
+        
+        logger.debug(f"Saving to file: {filepath}")
+        with open(filepath, 'w') as f:
+            json.dump(result, f, indent=2)
+        logger.info(f"Successfully saved analysis result to {filepath}")
+        
+    except Exception as e:
+        logger.error(f"Error saving analysis result: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
-def should_continue(state: AnalysisState) -> str:
-    """Determine next step based on current state."""
-    try:
-        logger.debug(f"Checking next step for current_step={state['current_step']}")
-        step = state['current_step']
-        if step == 0:
-            return "opportunity"
-        elif step == 1:
-            return "competitor"
-        elif step == 2:
-            return "final"
-        else:
-            return "end"
-    except Exception as e:
-        logger.error(f"Error in should_continue: {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
+# Define workflow graph
+workflow: StateGraph = StateGraph(AnalysisState)
 
-try:
-    logger.info("Creating workflow graph")
-    # Create the workflow graph
-    workflow = StateGraph(AnalysisState)
+# Add nodes
+workflow.add_node("analyze", analyze_trends)
+workflow.add_node("opportunities", analyze_opportunities)
+workflow.add_node("competitors", analyze_competitors)
+workflow.add_node("generate", generate_final)
 
-    # Add nodes for each analysis step
-    workflow.add_node("trend", trend_analysis)
-    workflow.add_node("opportunity", opportunity_analysis)
-    workflow.add_node("competitor", competitor_analysis)
-    workflow.add_node("final", final_analysis)
+# Add edges
+workflow.add_edge(START, "analyze")
 
-    # Define the workflow
-    workflow.add_edge(START, "trend")
-    workflow.add_conditional_edges(
-        "trend",
-        should_continue,
-        {
-            "opportunity": "opportunity",
-            "competitor": "competitor",
-            "final": "final",
-            "end": END
-        }
-    )
-    workflow.add_conditional_edges(
-        "opportunity",
-        should_continue,
-        {
-            "competitor": "competitor",
-            "final": "final",
-            "end": END
-        }
-    )
-    workflow.add_conditional_edges(
-        "competitor",
-        should_continue,
-        {
-            "final": "final",
-            "end": END
-        }
-    )
-    workflow.add_edge("final", END)
+# Add conditional edges after trend analysis
+workflow.add_conditional_edges(
+    "analyze",
+    check_analysis_quality,
+    {
+        "generate": "opportunities",
+        "refine": "analyze"
+    }
+)
 
-    # Compile the graph
-    logger.info("Compiling workflow graph")
-    graph = workflow.compile()
-except Exception as e:
-    logger.error(f"Failed to create or compile workflow graph: {str(e)}")
-    logger.error(f"Traceback: {traceback.format_exc()}")
-    raise
+# Add remaining edges
+workflow.add_edge("opportunities", "competitors")
+workflow.add_edge("competitors", "generate")
+workflow.add_edge("generate", END)
 
-def extract_percentage(text: str) -> float:
-    """Extract percentage value from text and convert to float."""
-    try:
-        # Remove % sign and convert to float
-        return float(text.strip().rstrip('%')) / 100
-    except (ValueError, AttributeError):
-        return 0.0
-
-def generate_year_projections(growth_rate: float, base_year: float = None) -> Dict[str, float]:
-    """Generate year-by-year projections based on growth rate."""
-    if base_year is None:
-        base_year = 0.2  # Start at 20% if no base provided
-    
-    years = {}
-    current = base_year
-    for year in range(2025, 2031):
-        years[f"year_{year}"] = min(current, 1.0)  # Cap at 100%
-        current = current * (1 + growth_rate)
-    
-    return years
+# Compile graph
+graph: StateGraph = workflow.compile()
 
 async def run_analysis(user_input: str, focus_area: str, generate_novel: bool = True, k: int = 10) -> Dict[str, Any]:
     """Run the multi-step analysis process using the state graph."""
     try:
+        # Ensure k is a valid integer at the start
+        try:
+            k: int = max(1, min(50, int(k)))
+        except (TypeError, ValueError):
+            logger.warning(f"Invalid k value: {k}, using default k=10")
+            k = 10
+            
         logger.info(f"Starting analysis for focus_area='{focus_area}', k={k}")
         logger.debug(f"User input: {user_input}")
         
         # Initialize state
-        initial_state = AnalysisState(
-            messages=[],
-            focus_area=focus_area,
-            user_input=user_input,
-            trend_analysis="",
-            opportunity_analysis="",
-            competitor_analysis="",
-            final_analysis="",
-            current_step=0,
-            trends=[]
-        )
+        initial_state: Dict[str, Any] = {
+            "messages": [HumanMessage(content=user_input)],
+            "focus_area": focus_area,
+            "user_input": user_input,
+            "trend_analysis": "",
+            "opportunity_analysis": "",
+            "competitor_analysis": "",
+            "final_analysis": "",
+            "current_step": 0,
+            "trends": [],
+            "k": k,
+            "retry_count": 0
+        }
+        
+        # Create results directory if it doesn't exist
+        results_dir: str = os.path.join(os.path.dirname(__file__), "results")
+        os.makedirs(results_dir, exist_ok=True)
+        
+        # Generate unique run ID
+        timestamp: str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_id: str = uuid.uuid4().hex[:8]
+        
+        # Initialize results dictionary
+        run_results: Dict[str, Any] = {
+            "run_id": run_id,
+            "timestamp": timestamp,
+            "focus_area": focus_area,
+            "user_input": user_input,
+            "k": k,
+            "steps": [],
+            "final_output": None
+        }
         
         # Run the graph
         logger.info("Invoking workflow graph")
-        final_state = await graph.ainvoke(initial_state)
+        final_output: Optional[Dict[str, Any]] = None
+        
+        # Stream and log outputs
+        for output in graph.stream(initial_state):
+            for key, value in output.items():
+                logger.debug(f"Output from node '{key}':")
+                logger.debug(value)
+                
+                # Save intermediate result with serializable message content
+                step_result: Dict[str, Any] = {
+                    "step": key,
+                    "output": {}
+                }
+                
+                if isinstance(value, dict):
+                    serializable_value = {}
+                    for k_val, v in value.items():
+                        if k_val == "messages":
+                            # Extract content and metadata from LangChain messages
+                            serializable_value[k_val] = [
+                                {
+                                    "role": msg.type if hasattr(msg, 'type') else 'unknown',
+                                    "content": msg.content if hasattr(msg, 'content') else '',
+                                    "additional_kwargs": msg.additional_kwargs if hasattr(msg, 'additional_kwargs') else {}
+                                }
+                                for msg in v if hasattr(msg, 'type') and hasattr(msg, 'content')
+                            ]
+                        else:
+                            serializable_value[k_val] = v
+                    step_result["output"] = serializable_value
+                
+                run_results["steps"].append(step_result)
+                final_output = value
+        
         logger.info("Workflow graph execution completed")
         
-        # Parse trends using the TrendOp parser
-        try:
-            logger.info("Parsing trends from analysis")
-            trends = []
+        if not final_output:
+            logger.error("No final output generated from graph")
+            return {"error": "No output generated"}
             
-            # Split the analysis into individual trend sections
-            trend_sections = final_state["trend_analysis"].split("\n\n")
-            
-            for section in trend_sections:
-                if section.strip():
-                    try:
-                        # Parse the trend section using the TrendOp parser
-                        trend = trend_parser.parse(section)
-                        trends.append(trend.dict())
-                    except Exception as e:
-                        logger.error(f"Error parsing trend section: {str(e)}")
-                        continue
-            
-            # Sort trends by YC chances and growth rate
-            trends.sort(key=lambda x: (x.get("YC_chances", 0), x.get("Growth_rate_WoW", 0)), reverse=True)
-            
-            # Take top k trends
-            final_state["trends"] = trends[:k]
-            logger.info(f"Parsed {len(final_state['trends'])} trends (top {k})")
-            
-        except Exception as e:
-            logger.error(f"Error parsing trends: {str(e)}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            final_state["trends"] = []
+        trends = []
+        for msg in final_output.get("messages", []):
+            if msg.get("content"):
+                extracted_trends = extract_trends_from_message(msg["content"])
+                if extracted_trends:
+                    trends.extend(extracted_trends)
         
-        # Store the analysis in ApertureDB if generating novel ideas
-        if generate_novel:
-            try:
-                logger.info("Storing analysis in ApertureDB")
-                document = Document(
-                    page_content=f"""
-                    Focus Area: {focus_area}
-                    User Input: {user_input}
-                    
-                    Trend Analysis:
-                    {final_state['trend_analysis']}
-                    
-                    Opportunity Analysis:
-                    {final_state['opportunity_analysis']}
-                    
-                    Competitor Analysis:
-                    {final_state['competitor_analysis']}
-                    
-                    Final Analysis:
-                    {final_state['final_analysis']}
-                    """,
-                    metadata={
-                        "type": "business_analysis",
-                        "focus_area": focus_area,
-                        "timestamp": datetime.now().isoformat()
-                    }
-                )
-                await aperture_tools.add_document(document)
-                logger.info("Successfully stored analysis in ApertureDB")
-            except Exception as e:
-                logger.error(f"Failed to store analysis in ApertureDB: {str(e)}")
-                logger.error(f"Traceback: {traceback.format_exc()}")
+        if not trends:
+            logger.warning("No trends extracted from any messages")
+            # Include the last message content if no trends were extracted
+            last_message = next((msg["content"] for msg in reversed(final_output.get("messages", [])) if msg.get("content")), None)
+            if last_message:
+                trends = [{"content": last_message, "type": "raw_content"}]
         
+        logger.info(f"Analysis completed with {len(trends)} trends")
         return {
-            "trend_analysis": final_state["trend_analysis"],
-            "opportunity_analysis": final_state["opportunity_analysis"],
-            "competitor_analysis": final_state["competitor_analysis"],
-            "final_analysis": final_state["final_analysis"],
-            "trends": final_state["trends"]
+            "messages": final_output.get("messages", []),
+            "trends": trends
         }
+        
     except Exception as e:
         logger.error(f"Error in run_analysis: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")

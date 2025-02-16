@@ -90,7 +90,7 @@ async def analyze_business_opportunity(query: AnalysisInput) -> List[TrendOp]:
         for trend in result.get("trends", []):
             trend_op = TrendOp(
                 Trend=trend["name"],
-                Startup_Opportunity=trend["opportunity"],
+                Startup_Opportunity=trend["Startup_Opportunity"],
                 Growth_rate_WoW=trend.get("growth_rate", 0.0),
                 YC_chances=trend.get("yc_chances", 0.0),
                 Year_2025=trend.get("year_2025", 0.0),
