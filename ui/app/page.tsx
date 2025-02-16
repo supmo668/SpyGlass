@@ -12,7 +12,6 @@ import {
   Legend,
 Label  // Add this
 } from "recharts";
-import Papa from "papaparse";
 import { Search, Sparkles, TrendingUp, Zap, Download } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -32,76 +31,118 @@ import {
 import { useTheme } from "next-themes"
 import { Moon, Sun } from "lucide-react"
 
-interface CSVRow {
-  Trend: string;
-  "Startup Opportunity": string;
-  "Related trends": string;
-  "Growth rate, WoW": string;
-  "YC chances": string;
-  "2025": string;
-  "2026": string;
-  "2027": string;
-  "2028": string;
-  "2029": string;
-  "2030": string;
+interface Trend {
+  name: string;
+  description: string;
+  Startup_Opportunity: string;
+  Related_trends: string;
+  Growth_rate_WoW: number;
+  YC_chances: number;
+  Year_2025: number;
+  Year_2026: number;
+  Year_2027: number;
+  Year_2028: number;
+  Year_2029: number;
+  Year_2030: number;
 }
 
-interface ProcessedRow
-  extends Omit<
-    CSVRow,
-    "2025" | "2026" | "2027" | "2028" | "2029" | "2030"
-  > {
-  "2025": number;
-  "2026": number;
-  "2027": number;
-  "2028": number;
-  "2029": number;
-  "2030": number;
+interface ApiResponse {
+  trends: Trend[];
 }
 
-const years = ["2025", "2026", "2027", "2028", "2029", "2030"];
+const years = ["Year_2025", "Year_2026", "Year_2027", "Year_2028", "Year_2029", "Year_2030"];
 
 export default function Home() {
-  const [csvData, setCsvData] = useState<ProcessedRow[]>([]);
-  const [selectedTrend, setSelectedTrend] = useState<ProcessedRow | null>(null);
+  const [trendsData, setTrendsData] = useState<Trend[]>([]);
+  const [selectedTrend, setSelectedTrend] = useState<Trend | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredData, setFilteredData] = useState<ProcessedRow[]>([]);
+const [filteredData, setFilteredData] = useState<Trend[]>([]);
 
   const { theme, setTheme } = useTheme();
 
-  useEffect(() => {
-    fetch("/Gemini Advanced 20 Pro Experimental.csv")
-      .then((res) => res.text())
-      .then((csvText) => {
-        Papa.parse(csvText, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            const processed: ProcessedRow[] = results.data.map((row: CSVRow) => {
-              const newRow = { ...row } as ProcessedRow;
-              years.forEach((year) => {
-                newRow[year] = parseFloat(newRow[year]?.replace("%", "") || "0");
-              });
-              return newRow;
-            });
-            setCsvData(processed);
-            setFilteredData(processed);
-          },
-        });
+  const fetchTrends = async () => {
+    try {
+      console.log('Sending request to API...');
+      const response = await fetch('https://simple-lobster-morally.ngrok-free.app/analyze', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
+        mode: 'cors',
+        body: JSON.stringify({
+          user_input: searchQuery || "cat ideas",
+          focus_area: "business_opportunities",
+          k: 5
+        })
       });
-  }, []);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      console.log('Response received, parsing JSON...');
+      const data = await response.json();
+      console.log('Raw API Response:', data);
+      
+      // Log the structure of the data
+      console.log('Data type:', typeof data);
+      console.log('Has trends property:', 'trends' in data);
+      if ('trends' in data) {
+        console.log('Trends type:', typeof data.trends);
+        console.log('Is trends an array:', Array.isArray(data.trends));
+        if (Array.isArray(data.trends) && data.trends.length > 0) {
+          console.log('First trend object:', data.trends[0]);
+        }
+      }
+
+      // Ensure the data matches our expected format
+      if (data.trends && Array.isArray(data.trends)) {
+        console.log('Setting trend data with', data.trends.length, 'trends');
+        setTrendsData(data.trends);
+        setFilteredData(data.trends);
+        if (data.trends.length > 0) {
+          console.log('Setting selected trend:', data.trends[0]);
+          setSelectedTrend(data.trends[0]);
+        }
+      } else {
+        throw new Error('Invalid data format received from API');
+      }
+    } catch (error) { 
+      console.error('Error fetching trends:', error);
+      // Set some default data or show an error state
+      setTrendsData([]);
+      // setFilteredData([]);
+    }
+  };
+
+  // Add debounce to prevent too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchTrends();
+    }, 500); // Wait 500ms after the user stops typing
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
 
   useEffect(() => {
-    const filtered = csvData.filter((row) =>
-      row.Trend.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setFilteredData(filtered);
-  }, [searchQuery, csvData]);
+    // const filtered = trendsData.filter((trend) =>
+    //   trend.name.toLowerCase().includes(searchQuery.toLowerCase())
+    // );
+    setFilteredData(trendsData);
+  }, [searchQuery, trendsData]);
 
   const pivotedData = years.map((year) => {
-    const obj: { year: string; [key: string]: number | string } = { year };
-    filteredData.forEach((row) => {
-      obj[row.Trend] = row[year];
+    console.log('Pivoting data for', year);
+    const obj: { year: string; [key: string]: number | string } = { 
+      year: year.replace('Year_', '')
+    };
+    console.log('Pivoting', filteredData.length, 'filtered trends');
+    filteredData.forEach((trend) => {
+      obj[trend.name] = trend[year];
+      console.log(`Pivoting trend ${trend.name} for year ${year}`);
     });
     return obj;
   });
@@ -124,7 +165,7 @@ export default function Home() {
   const handleMouseMove = (state: any) => {
     if (state && state.activePayload && state.activePayload.length > 0) {
       const trendName = state.activePayload[0].dataKey;
-      const selected = csvData.find((row) => row.Trend === trendName);
+      const selected = trendsData.find((trend) => trend.name === trendName);
       if (selected) setSelectedTrend(selected);
     }
   };
@@ -144,7 +185,7 @@ export default function Home() {
               <div>
                 <p className="text-sm font-medium">{data.name}</p>
                 <p className="text-sm text-muted-foreground">
-                  {label}: {data.value}%
+                  {label}: {(data.value * 100).toFixed(1)}%
                 </p>
               </div>
             </div>
@@ -195,7 +236,7 @@ return (
           <div className="sticky top-24 space-y-4">
             {filteredData.map((trend, idx) => (
               <div
-                key={trend.Trend}
+                key={trend.name}
                 className="flex items-center space-x-2.5 group cursor-pointer"
                 onMouseEnter={() => setSelectedTrend(trend)}
               >
@@ -210,7 +251,7 @@ return (
                   />
                 </div>
                 <span className="text-sm text-muted-foreground whitespace-nowrap transition-colors group-hover:text-foreground">
-                  {trend.Trend}
+                  {trend.name}
                 </span>
               </div>
             ))}
@@ -285,9 +326,9 @@ return (
                     />
                     {filteredData.map((trend, idx) => (
                       <Line
-                        key={trend.Trend}
+                        key={trend.name}
                         type="monotone"
-                        dataKey={trend.Trend}
+                        dataKey={trend.name}
                         stroke={colors[idx % colors.length]}
                         strokeWidth={2}
                         dot={false}
@@ -309,14 +350,14 @@ return (
           <div className="grid grid-cols-2 gap-4">
             {filteredData.map((trend, idx) => (
               <motion.div
-                key={trend.Trend}
+                key={trend.name}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
               >
                 <Card
                   className={`cursor-pointer transition-all hover:shadow-lg ${
-                    selectedTrend?.Trend === trend.Trend ? "ring-2 ring-primary" : ""
+                    selectedTrend?.name === trend.name ? "ring-2 ring-primary" : ""
                   }`}
                   onClick={() => setSelectedTrend(trend)}
                 >
@@ -324,10 +365,10 @@ return (
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="font-semibold text-foreground">
-                          {trend.Trend}
+                          {trend.name}
                         </h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {trend["Startup Opportunity"]}
+                          {trend.Startup_Opportunity}
                         </p>
                       </div>
                       <Badge
@@ -335,7 +376,7 @@ return (
                         className="flex items-center space-x-1"
                       >
                         <TrendingUp className="h-3 w-3" />
-                        <span>{trend["Growth rate, WoW"]}</span>
+                        <span>{trend.Growth_rate_WoW}</span>
                       </Badge>
                     </div>
                   </CardContent>
@@ -357,10 +398,10 @@ return (
                   <div className="space-y-6">
                     <div>
                       <h2 className="text-xl font-semibold text-foreground">
-                        {selectedTrend.Trend}
+                        {selectedTrend.name}
                       </h2>
                       <p className="mt-2 text-muted-foreground">
-                        {selectedTrend["Startup Opportunity"]}
+                        {selectedTrend.Startup_Opportunity}
                       </p>
                     </div>
 
@@ -372,7 +413,7 @@ return (
                             <div>
                               <p className="text-sm text-muted-foreground">Growth Rate</p>
                               <p className="font-semibold">
-                                {selectedTrend["Growth rate, WoW"]}
+                                {selectedTrend.Growth_rate_WoW}
                               </p>
                             </div>
                           </div>
@@ -386,7 +427,7 @@ return (
                             <div>
                               <p className="text-sm text-muted-foreground">YC Chances</p>
                               <p className="font-semibold">
-                                {selectedTrend["YC chances"]}
+                                {selectedTrend.YC_chances}
                               </p>
                             </div>
                           </div>
@@ -399,8 +440,8 @@ return (
                         Related Trends
                       </h3>
                       <div className="flex flex-wrap gap-2">
-                        {selectedTrend["Related trends"]
-                          .split(",")
+                        {selectedTrend.Related_trends
+                          ?.split(",")
                           .map((trend) => (
                             <Badge
                               key={trend.trim()}
