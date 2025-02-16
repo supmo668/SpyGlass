@@ -1,0 +1,182 @@
+2025-02-16 13:40:02,531 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Sun, 16 Feb 2025 21:40:16 GMT'), (b'Content-Type', b'application/json; charset=utf-8'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'CF-Ray', b'9130b1c9dc58ed3a-SJC'), (b'CF-Cache-Status', b'DYNAMIC'), (b'Retry-After', b'2'), (b'Access-Control-Allow-Origin', b'*'), (b'ETag', b'W/"c7a-wB0Gm9uubWNd/sBcLar8azrrdr4"'), (b'Strict-Transport-Security', b'max-age=15552000; includeSubDomains'), (b'x-api-call-end', b'2025-02-16T21:40:16.100Z'), (b'x-api-call-start', b'2025-02-16T21:40:09.935Z'), (b'x-api-received', b'2025-02-16T21:40:09.926Z'), (b'X-Content-Type-Options', b'nosniff'), (b'x-inference-version', b'v2'), (b'x-ratelimit', b'false'), (b'x-ratelimit-limit', b'100'), (b'x-ratelimit-limit-tokens', b'33333'), (b'x-ratelimit-remaining', b'199'), (b'x-ratelimit-remaining-tokens', b'31122'), (b'x-ratelimit-reset', b'2'), (b'Vary', b'Accept-Encoding'), (b'Server', b'cloudflare'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-02-16 13:40:02,532 - httpx - INFO - HTTP Request: POST https://api.together.xyz/v1/chat/completions "HTTP/1.1 200 OK"
+2025-02-16 13:40:02,534 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-02-16 13:40:02,535 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-02-16 13:40:02,536 - httpcore.http11 - DEBUG - response_closed.started
+2025-02-16 13:40:02,537 - httpcore.http11 - DEBUG - response_closed.complete
+2025-02-16 13:40:02,539 - openai._base_client - DEBUG - HTTP Request: POST https://api.together.xyz/v1/chat/completions "200 OK"
+2025-02-16 13:40:02,563 - weave.trace.context.call_context - DEBUG - weave pop_call error: Call with id 019510b4-24b8-7b81-b579-dbb32931c6de not found in stack.
+2025-02-16 13:40:02,566 - agent - DEBUG - Trend analysis response:  {
+  "trends": [
+    {
+      "name": "Personalized Wellness",
+      "description": "Tech-enabled personalized health and wellness solutions.",
+      "Year_2025": 0.25,
+      "Year_2026": 0.32,
+      "Year_2027": 0.41,
+      "Year_2028": 0.51,
+      "Year_2029": 0.62,
+      "Year_2030": 0.73,
+      "Startup_Opportunity": "Create AI-driven personalized health and wellness apps.",
+      "Growth_rate_WoW": 0.03,
+      "YC_chances": 0.35,
+      "Related_trends": "Digital Health, AI in Healthcare"
+    },
+    {
+      "name": "Sustainable Supply Chains",
+      "description": "Technology to track and optimize eco-friendly supply chains.",
+      "Year_2025": 0.18,
+      "Year_2026": 0.23,
+      "Year_2027": 0.31,
+      "Year_2028": 0.41,
+      "Year_2029": 0.53,
+      "Year_2030": 0.64,
+      "Startup_Opportunity": "Provide blockchain-based supply chain transparency solutions.",
+      "Growth_rate_WoW": 0.04,
+      "YC_chances": 0.30,
+      "Related_trends": "Blockchain, Green Tech"
+    },
+    {
+      "name": "Virtual Reality Experiences",
+      "description": "Immersive VR experiences in education, travel, and more.",
+      "Year_2025": 0.12,
+      "Year_2026": 0.16,
+      "Year_2027": 0.22,
+      "Year_2028": 0.31,
+      "Year_2029": 0.42,
+      "Year_2030": 0.55,
+      "Startup_Opportunity": "Create unique VR experiences for education or tourism.",
+      "Growth_rate_WoW": 0.05,
+      "YC_chances": 0.25,
+      "Related_trends": "EdTech, Travel Tech"
+    },
+    {
+      "name": "Autonomous Delivery",
+      "description": "Autonomous delivery vehicles and drones in urban areas.",
+      "Year_2025": 0.15,
+      "Year_2026": 0.19,
+      "Year_2027": 0.26,
+      "Year_2028": 0.36,
+      "Year_2029": 0.49,
+      "Year_2030": 0.63,
+      "Startup_Opportunity": "Develop software for autonomous delivery fleet management.",
+      "Growth_rate_WoW": 0.06,
+      "YC_chances": 0.38,
+      "Related_trends": "Autonomous Vehicles, Smart Cities"
+    },
+    {
+      "name": "Remote Work Solutions",
+      "description": "Advanced tools for remote work, collaboration, and productivity.",
+      "Year_2025": 0.30,
+      "Year_2026": 0.38,
+      "Year_2027": 0.48,
+      "Year_2028": 0.59,
+      "Year_2029": 0.72,
+      "Year_2030": 0.84,
+      "Startup_Opportunity": "Create a platform for immersive remote collaboration.",
+      "Growth_rate_WoW": 0.07,
+      "YC_chances": 0.45,
+      "Related_trends": "Future of Work, Productivity Tools"
+    }
+  ]
+}
+2025-02-16 13:40:02,567 - weave.trace.context.call_context - DEBUG - weave pop_call error: Found empty callstack when popping call_id: 019510b4-2489-7703-ad2b-a1aabab498d7.
+2025-02-16 13:40:03,345 - urllib3.connectionpool - DEBUG - https://trace.wandb.ai:443 "POST /call/upsert_batch HTTP/1.1" 200 18
+2025-02-16 13:40:13,968 - main - INFO - Received analysis request: Make San Francisco carbon neutral
+2025-02-16 13:40:13,969 - agent - INFO - Starting analysis for focus_area='business opportunities', k=5
+2025-02-16 13:40:13,969 - agent - DEBUG - User input: Make San Francisco carbon neutral
+2025-02-16 13:40:14,013 - openai._base_client - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'content': "You are a founder-minded AI assistant specialized in identifying business opportunities and trends.\nYour analysis should be data-driven, focusing on growth potential and market dynamics.\nAlways think in terms of scalability, market size, and venture capital requirements.\nYou will perform analysis in multiple steps, each building upon the previous step's findings.\nYou have access to a database of market data and company information through ApertureDB.\n", 'role': 'system'}, {'content': 'You are a trend analysis expert. Analyze the following business opportunity or focus area and provide EXACTLY 5 trends.\nFocus area: business opportunities\n\nRequirements:\n1. Each trend must include:\n   - Name (under 50 chars)\n   - Description (under 100 chars)\n   - Growth projections for years 2025-2030 (as decimals 0-1)\n   - Startup opportunity (under 100 chars)\n   - Week-over-week growth rate (as decimal)\n   - YC acceptance chances (as decimal)\n   - Related trends (max 2, comma separated)\n2. All numeric values must be between 0 and 1\n3. Response must follow this exact format:\n\nThe output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"$defs": {"TrendOp": {"description": "Model for a trend operation analysis.", "properties": {"name": {"description": "Name of the trend", "title": "Name", "type": "string"}, "description": {"description": "Detailed description of the trend", "title": "Description", "type": "string"}, "Year_2025": {"description": "Projected adoption/impact percentage for 2025 (0.0 to 1.0)", "title": "Year 2025", "type": "number"}, "Year_2026": {"description": "Projected adoption/impact percentage for 2026 (0.0 to 1.0)", "title": "Year 2026", "type": "number"}, "Year_2027": {"description": "Projected adoption/impact percentage for 2027 (0.0 to 1.0)", "title": "Year 2027", "type": "number"}, "Year_2028": {"description": "Projected adoption/impact percentage for 2028 (0.0 to 1.0)", "title": "Year 2028", "type": "number"}, "Year_2029": {"description": "Projected adoption/impact percentage for 2029 (0.0 to 1.0)", "title": "Year 2029", "type": "number"}, "Year_2030": {"description": "Projected adoption/impact percentage for 2030 (0.0 to 1.0)", "title": "Year 2030", "type": "number"}, "Startup_Opportunity": {"description": "Detailed description of the startup opportunity related to this trend", "title": "Startup Opportunity", "type": "string"}, "Growth_rate_WoW": {"description": "Week-over-week growth rate as a decimal (0.0 to 1.0)", "title": "Growth Rate Wow", "type": "number"}, "YC_chances": {"description": "Probability of YC investment success as a decimal (0.0 to 1.0)", "title": "Yc Chances", "type": "number"}, "Related_trends": {"description": "Comma-separated list of related trends", "title": "Related Trends", "type": "string"}}, "required": ["name", "description", "Year_2025", "Year_2026", "Year_2027", "Year_2028", "Year_2029", "Year_2030", "Startup_Opportunity", "Growth_rate_WoW", "YC_chances", "Related_trends"], "title": "TrendOp", "type": "object"}}, "description": "Container for multiple trend operations.", "properties": {"trends": {"description": "List of trend operations to analyze", "items": {"$ref": "#/$defs/TrendOp"}, "title": "Trends", "type": "array"}}, "required": ["trends"]}\n```\n', 'role': 'user'}], 'model': 'mistralai/Mixtral-8x7B-Instruct-v0.1', 'max_tokens': 2000, 'stream': False, 'temperature': 0.7}}
+2025-02-16 13:40:14,014 - httpcore.connection - DEBUG - connect_tcp.started host='api.together.xyz' port=443 local_address=None timeout=120.0 socket_options=None
+2025-02-16 13:40:14,055 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f5bee962b00>
+2025-02-16 13:40:14,056 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x7f5bd4437cc0> server_hostname='api.together.xyz' timeout=120.0
+2025-02-16 13:40:14,071 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7f5bee960820>
+2025-02-16 13:40:14,072 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-02-16 13:40:14,073 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-02-16 13:40:14,073 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-02-16 13:40:14,074 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-02-16 13:40:14,074 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-02-16 13:40:14,710 - urllib3.connectionpool - DEBUG - https://trace.wandb.ai:443 "POST /call/upsert_batch HTTP/1.1" 200 297
+2025-02-16 13:40:20,625 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Sun, 16 Feb 2025 21:40:34 GMT'), (b'Content-Type', b'application/json; charset=utf-8'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'CF-Ray', b'9130b238e83eebe3-SJC'), (b'CF-Cache-Status', b'DYNAMIC'), (b'Retry-After', b'2'), (b'Access-Control-Allow-Origin', b'*'), (b'ETag', b'W/"c40-hKp8U0/2zzQIE4iA+NTiH3KF92k"'), (b'Strict-Transport-Security', b'max-age=15552000; includeSubDomains'), (b'x-api-call-end', b'2025-02-16T21:40:34.196Z'), (b'x-api-call-start', b'2025-02-16T21:40:27.709Z'), (b'x-api-received', b'2025-02-16T21:40:27.701Z'), (b'X-Content-Type-Options', b'nosniff'), (b'x-inference-version', b'v2'), (b'x-ratelimit', b'false'), (b'x-ratelimit-limit', b'100'), (b'x-ratelimit-limit-tokens', b'33333'), (b'x-ratelimit-remaining', b'199'), (b'x-ratelimit-remaining-tokens', b'31110'), (b'x-ratelimit-reset', b'2'), (b'Vary', b'Accept-Encoding'), (b'Server', b'cloudflare'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-02-16 13:40:20,627 - httpx - INFO - HTTP Request: POST https://api.together.xyz/v1/chat/completions "HTTP/1.1 200 OK"
+2025-02-16 13:40:20,628 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-02-16 13:40:20,631 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-02-16 13:40:20,632 - httpcore.http11 - DEBUG - response_closed.started
+2025-02-16 13:40:20,633 - httpcore.http11 - DEBUG - response_closed.complete
+2025-02-16 13:40:20,634 - openai._base_client - DEBUG - HTTP Request: POST https://api.together.xyz/v1/chat/completions "200 OK"
+2025-02-16 13:40:20,637 - weave.trace.context.call_context - DEBUG - weave pop_call error: Call with id 019510b4-6a3a-7a21-8f1d-4c0faf2b638b not found in stack.
+2025-02-16 13:40:20,644 - agent - DEBUG - Trend analysis response:  {
+  "trends": [
+    {
+      "name": "Remote Work Tools",
+      "description": "The rise of remote work requires better collaboration tools.",
+      "Year_2025": 0.65,
+      "Year_2026": 0.72,
+      "Year_2027": 0.80,
+      "Year_2028": 0.88,
+      "Year_2029": 0.93,
+      "Year_2030": 0.98,
+      "Startup_Opportunity": "Create intuitive and secure remote work platforms.",
+      "Growth_rate_WoW": 0.025,
+      "YC_chances": 0.35,
+      "Related_trends": "Digital Transformation, Gig Economy"
+    },
+    {
+      "name": "Personalized Healthcare",
+      "description": "Healthcare becomes more personalized with AI and IoT.",
+      "Year_2025": 0.42,
+      "Year_2026": 0.51,
+      "Year_2027": 0.59,
+      "Year_2028": 0.67,
+      "Year_2029": 0.76,
+      "Year_2030": 0.85,
+      "Startup_Opportunity": "Develop AI-powered diagnostic tools and IoT devices.",
+      "Growth_rate_WoW": 0.03,
+      "YC_chances": 0.30,
+      "Related_trends": "AI in Healthcare, IoT"
+    },
+    {
+      "name": "Sustainable Solutions",
+      "description": "Growing demand for eco-friendly products and services.",
+      "Year_2025": 0.51,
+      "Year_2026": 0.60,
+      "Year_2027": 0.68,
+      "Year_2028": 0.76,
+      "Year_2029": 0.84,
+      "Year_2030": 0.93,
+      "Startup_Opportunity": "Create green alternatives to existing products and services.",
+      "Growth_rate_WoW": 0.02,
+      "YC_chances": 0.25,
+      "Related_trends": "Circular Economy, Climate Action"
+    },
+    {
+      "name": "Virtual Reality Education",
+      "description": "VR/AR technologies revolutionize education and training.",
+      "Year_2025": 0.35,
+      "Year_2026": 0.43,
+      "Year_2027": 0.51,
+      "Year_2028": 0.60,
+      "Year_2029": 0.69,
+      "Year_2030": 0.78,
+      "Startup_Opportunity": "Create immersive educational VR/AR platforms.",
+      "Growth_rate_WoW": 0.04,
+      "YC_chances": 0.40,
+      "Related_trends": "EdTech, VR/AR"
+    },
+    {
+      "name": "Autonomous Delivery",
+      "description": "Autonomous vehicles transform delivery for customers.",
+      "Year_2025": 0.22,
+      "Year_2026": 0.30,
+      "Year_2027": 0.38,
+      "Year_2028": 0.47,
+      "Year_2029": 0.57,
+      "Year_2030": 0.67,
+      "Startup_Opportunity": "Develop autonomous delivery solutions.",
+      "Growth_rate_WoW": 0.05,
+      "YC_chances": 0.50,
+      "Related_trends": "Autonomous Vehicles, Last-Mile Delivery"
+    }
+  ]
+}
+2025-02-16 13:40:20,662 - weave.trace.context.call_context - DEBUG - weave pop_call error: Found empty callstack when popping call_id: 019510b4-6a10-7731-8693-d2e01b6efc50.
+2025-02-16 13:40:21,092 - urllib3.connectionpool - DEBUG - https://trace.wandb.ai:443 "POST /call/upsert_batch HTTP/1.1" 200 18

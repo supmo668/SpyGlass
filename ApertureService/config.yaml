@@ -1,0 +1,131 @@
+model:
+  name: "mistralai/Mixtral-8x7B-Instruct-v0.1"
+  base_url: "https://api.together.xyz/v1"
+  temperature: 0.7
+  max_tokens: 2000
+
+aperturedb:
+  tools:
+    - name: "search_similar_companies"
+      description: "Search for similar companies in the database based on description"
+      function:
+        name: "search_similar_companies"
+        description: "Find similar companies based on text description"
+        parameters:
+          type: "object"
+          properties:
+            description:
+              type: "string"
+              description: "Company or product description to search for"
+            limit:
+              type: "integer"
+              description: "Maximum number of results to return"
+              default: 5
+
+    - name: "search_market_data"
+      description: "Search for market data and trends in the database"
+      function:
+        name: "search_market_data"
+        description: "Find market data and trends based on keywords"
+        parameters:
+          type: "object"
+          properties:
+            keywords:
+              type: "string"
+              description: "Keywords to search for in market data"
+            limit:
+              type: "integer"
+              description: "Maximum number of results to return"
+              default: 5
+
+prompts:
+  system: |
+    You are a founder-minded AI assistant specialized in identifying business opportunities and trends.
+    Your analysis should be data-driven, focusing on growth potential and market dynamics.
+    Always think in terms of scalability, market size, and venture capital requirements.
+    You will perform analysis in multiple steps, each building upon the previous step's findings.
+    You have access to a database of market data and company information through ApertureDB.
+
+  trend_analysis: |
+    You are a trend analysis expert. Analyze the following business opportunity or focus area and provide EXACTLY {k} trends.
+    Focus area: {user_input}
+
+    Requirements:
+    1. Each trend must include:
+       - Name (under 50 chars)
+       - Description (under 100 chars)
+       - Growth projections for years 2025-2030 (as decimals 0-1)
+       - Startup opportunity (under 100 chars)
+       - Week-over-week growth rate (as decimal)
+       - YC acceptance chances (as decimal)
+       - Related trends (max 2, comma separated)
+    2. All numeric values must be between 0 and 1
+    3. Response must follow this exact format:
+
+    {format_instructions}
+
+  opportunity_analysis: |
+    Based on the following trend analysis:
+    {trend_analysis}
+
+    Analyze potential business opportunities for:
+    {user_input}
+
+    Focus on:
+    1. Market size and growth potential
+    2. Revenue models and monetization strategies
+    3. Target customer segments
+    4. Unique value propositions
+    5. Initial go-to-market strategy
+
+    Format your response as a clear, structured analysis.
+
+  competitor_analysis: |
+    Based on the following opportunity analysis:
+    {opportunity_analysis}
+
+    Analyze the competitive landscape for:
+    {user_input}
+
+    Focus on:
+    1. Direct and indirect competitors
+    2. Their strengths and weaknesses
+    3. Market positioning
+    4. Barriers to entry
+    5. Competitive advantages
+
+    Format your response as a clear, structured analysis.
+
+  bi_report: |
+    Based on the following analyses:
+    
+    Trend Analysis:
+    {trend_analysis}
+    
+    Opportunity Analysis:
+    {opportunity_analysis}
+    
+    Competitor Analysis:
+    {competitor_analysis}
+
+    Provide a comprehensive analysis for:
+    {user_input}
+
+    Include:
+    1. Most promising trends and their growth trajectories
+    2. Key opportunities and their potential impact
+    3. Competitive landscape and market dynamics
+    4. Recommended strategies and next steps
+
+    Format your response as a clear, structured analysis.
+
+  user_template: |
+    Analyze the following business context with focus on {focus_area}:
+    {user_input}
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  title: "SpyGlass API"
+  description: "API for analyzing business opportunities and trends"
+  version: "1.0.0"
