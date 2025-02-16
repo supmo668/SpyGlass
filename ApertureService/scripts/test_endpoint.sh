@@ -1,55 +1,40 @@
 #!/bin/bash
 
-# Get the directory of the script
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Test the analyze endpoint
+echo "Testing analyze endpoint..."
+curl -X POST http://localhost:8000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "generate_novel_ideas": true,
+    "user_query": "Make San Francisco carbon neutral",
+    "k": 5
+  }'
 
-# Default values
-HOST="localhost"
-PORT="8000"
-FOCUS_AREA="artificial intelligence"
-USER_INPUT="Analyze the potential of AI in healthcare, focusing on diagnostic tools and patient care optimization"
+echo -e "\n\nTesting analyze endpoint with different k value..."
+curl -X POST http://localhost:8000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "generate_novel_ideas": false,
+    "user_query": "a startup in the AI healthcare space to curate and summarize doctor notes into patient insights",
+    "k": 3
+  }'
 
-# Parse command line arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --host)
-            HOST="$2"
-            shift 2
-            ;;
-        --port)
-            PORT="$2"
-            shift 2
-            ;;
-        --focus)
-            FOCUS_AREA="$2"
-            shift 2
-            ;;
-        --input)
-            USER_INPUT="$2"
-            shift 2
-            ;;
-        *)
-            echo "Unknown option: $1"
-            exit 1
-            ;;
-    esac
-done
+# # Test the index endpoint with a sample document
+# echo -e "\n\nTesting index endpoint..."
+# echo '{
+#   "title": "Sample Market Research",
+#   "content": "AI in healthcare is growing rapidly...",
+#   "date": "2025-02-16"
+# }' > /tmp/sample.json
 
-# Construct the JSON payload
-JSON_PAYLOAD=$(cat << EOF
-{
-    "user_input": "$USER_INPUT",
-    "focus_area": "$FOCUS_AREA"
-}
-EOF
-)
+# curl -X POST http://localhost:8000/index \
+#   -H "Content-Type: multipart/form-data" \
+#   -F "file=@/tmp/sample.json"
 
-# Make the curl request
-echo "Testing endpoint with payload:"
-echo "$JSON_PAYLOAD" | jq '.'
-echo -e "\nSending request to http://$HOST:$PORT/analyze..."
+# rm /tmp/sample.json
 
-curl -X POST "http://$HOST:$PORT/analyze" \
-     -H "Content-Type: application/json" \
-     -d "$JSON_PAYLOAD" | jq '.'
+# # Test the search endpoint
+# echo -e "\n\nTesting search endpoint..."
+# curl -X GET "http://localhost:8000/search?query=AI%20healthcare&limit=2"
+
+echo -e "\nAll tests completed!"
