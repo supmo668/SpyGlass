@@ -133,30 +133,42 @@ async def _analyze_trends(state: AnalysisState) -> str:
             timeout=120
         )
         
-        # Initialize parser
+        # Initialize parser with validation
         trend_parser = PydanticOutputParser(pydantic_object=KTrendOps)
         format_instructions = trend_parser.get_format_instructions()
         
-        # Create prompt
+        # Create prompt with user input
         prompt = PromptTemplate(
             template=config.get("prompts", {}).get("trend_analysis", ""),
             input_variables=["format_instructions", "user_input", "k"]
         )
         
-        # Create messages
+        # Create messages with system context
         messages = [
             SystemMessage(content=config.get("prompts", {}).get("system", "")),
             HumanMessage(content=prompt.format(
                 format_instructions=format_instructions,
-                user_input=state.get("focus_area", "business opportunities"),
+                user_input=state.get("user_input", ""),  # Use user_input instead of focus_area
                 k=state.get("k", 10)
             ))
         ]
         
-        # Get response and return content directly
+        # Get response and validate format
         response = await chat_model.ainvoke(messages)
-        logger.debug(f"Trend analysis response: {response.content}")
-        return response.content
+        content = response.content
+        
+        # Validate that we have exactly k trends
+        try:
+            parsed = trend_parser.parse(content)
+            if len(parsed.trends) != state.get("k", 10):
+                logger.warning(f"Expected {state.get('k', 10)} trends but got {len(parsed.trends)}")
+                # Let it continue as the format is still valid
+        except Exception as parse_error:
+            logger.error(f"Error parsing trends: {str(parse_error)}")
+            # Still return content as the next step will handle parsing errors
+        
+        logger.debug(f"Trend analysis response: {content}")
+        return content
         
     except Exception as e:
         logger.error(f"Error in analyze_trends: {str(e)}")

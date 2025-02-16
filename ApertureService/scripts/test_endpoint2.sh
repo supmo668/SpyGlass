@@ -8,7 +8,7 @@ timestamp=$(date +%Y%m%d_%H%M%S)
 
 # Test the analyze endpoint
 echo "Testing analyze endpoint..."
-curl -X POST http://localhost:8000/analyze \
+curl -X POST https://simple-lobster-morally.ngrok-free.app/analyze \
   -H "accept: application/json" \
   -H "Content-Type: application/json" \
   -d '{
@@ -16,3 +16,5 @@ curl -X POST http://localhost:8000/analyze \
     "focus_area": "business_opportunities",
     "k": 5
   }' | tee "test-result/analysis_${timestamp}.json"
+
+echo "result saved to test-result/analysis_${timestamp}.json"

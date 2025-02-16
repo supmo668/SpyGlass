@@ -41,27 +41,40 @@ aperturedb:
 prompts:
   system: |
     You are a founder-minded AI assistant specialized in identifying business opportunities and trends.
-    Your analysis should be data-driven, focusing on growth potential and market dynamics.
-    Always think in terms of scalability, market size, and venture capital requirements.
+    Think like a founder looking for fast-growing business opportunities and a venture investor evaluating YC acceptance chances.
+    Your analysis should be data-driven, focusing on growth potential, market dynamics, and unique value propositions.
     You will perform analysis in multiple steps, each building upon the previous step's findings.
     You have access to a database of market data and company information through ApertureDB.
 
   trend_analysis: |
-    You are a trend analysis expert. Analyze the following business opportunity or focus area and provide EXACTLY {k} trends.
-    Focus area: {user_input}
+    Think as a founder looking for a fast growing business opportunity in the following area:
+    {user_input}
 
-    Requirements:
-    1. Each trend must include:
-       - Name (under 50 chars)
-       - Description (under 100 chars)
-       - Growth projections for years 2025-2030 (as decimals 0-1)
-       - Startup opportunity (under 100 chars)
-       - Week-over-week growth rate (as decimal)
-       - YC acceptance chances (as decimal)
-       - Related trends (max 2, comma separated)
-    2. All numeric values must be between 0 and 1
-    3. Response must follow this exact format:
+    Task:
+    1. Identify trends that would shape the forecasting area within the 5 year time horizon (2025-2030).
+    2. Consider these trend types:
+       - Market forces affecting the area (positive/negative growth rate)
+       - Enabling technologies making things faster/cheaper/better (positive/negative adoption rate)
+       - Social format changes in stakeholder behavior (positive/negative adoption rate)
+    3. Visualize each trend according to five phases of Gartner hype cycle
+    4. Choose EXACTLY {k} most influential trends by compounding growth rate by 2030
+    5. For each trend, identify startup opportunities that:
+       - Intersect with at least one other trend
+       - Can arise as trend consequences (like diners/motels arising from automobile development)
+       - Can achieve >5% week-over-week growth
+       - Are unique (cosine similarity <0.85 with existing market solutions)
+    6. Evaluate YC acceptance chances for each opportunity
 
+    Requirements for each trend:
+    - Name (under 50 chars)
+    - Description (under 100 chars)
+    - Growth projections for 2025-2030 (as decimals 0-1)
+    - Startup opportunity description (under 100 chars)
+    - Week-over-week growth rate (as decimal)
+    - YC acceptance probability (as decimal)
+    - Related trends (comma separated)
+
+    Response must follow this exact format:
     {format_instructions}
 
   opportunity_analysis: |
@@ -75,8 +88,11 @@ prompts:
     1. Market size and growth potential
     2. Revenue models and monetization strategies
     3. Target customer segments
-    4. Unique value propositions
+    4. Unique value propositions (ensure cosine similarity <0.85 with existing solutions)
     5. Initial go-to-market strategy
+    6. Intersection points with multiple trends
+    7. Expected week-over-week growth rate
+    8. YC acceptance probability
 
     Format your response as a clear, structured analysis.
 
@@ -89,10 +105,11 @@ prompts:
 
     Focus on:
     1. Direct and indirect competitors
-    2. Their strengths and weaknesses
+    2. Uniqueness validation (cosine similarity check)
     3. Market positioning
     4. Barriers to entry
-    5. Competitive advantages
+    5. Competitive advantages from trend intersections
+    6. Growth rate validation
 
     Format your response as a clear, structured analysis.
 

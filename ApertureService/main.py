@@ -10,6 +10,7 @@ import weave
 import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 # Initialize Weave
@@ -34,6 +35,15 @@ app = FastAPI(
     title=config["api"]["title"],
     description=config["api"]["description"],
     version=config["api"]["version"]
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 # Initialize ApertureDB tools
@@ -69,6 +79,10 @@ class AnalysisInput(BaseModel):
     user_input: str
     k: int = Field(default=10, ge=1, le=50, description="Number of trends to generate")
 
+class TrendAnalysisResponse(BaseModel):
+    """Model for the complete trend analysis response."""
+    trends: List[TrendOp]
+
 @weave.op()
 async def analyze_business_opportunity(query: AnalysisInput) -> str:
     """Analyze a business opportunity and return trend analysis."""
@@ -95,13 +109,14 @@ async def analyze_business_opportunity(query: AnalysisInput) -> str:
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/analyze", response_model=str)
-async def analyze(query: AnalysisInput) -> str:
+@app.post("/analyze", response_model=TrendAnalysisResponse)
+async def analyze(query: AnalysisInput) -> TrendAnalysisResponse:
     """
     API endpoint to analyze business opportunities and generate startup ideas.
     Returns a trend analysis response.
     """
-    return await analyze_business_opportunity(query)
+    json_str = await analyze_business_opportunity(query)
+    return TrendAnalysisResponse.parse_raw(json_str)
 
 @app.post("/index")
 async def index(file: UploadFile = File(...)) -> Dict[str, Any]:

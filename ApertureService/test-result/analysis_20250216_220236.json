@@ -1,0 +1,74 @@
+{
+    "trends": [
+        {
+            "name": "Remote Work Tools",
+            "description": "The rise of remote work due to the pandemic.",
+            "Year_2025": 0.8,
+            "Year_2026": 0.85,
+            "Year_2027": 0.9,
+            "Year_2028": 0.93,
+            "Year_2029": 0.95,
+            "Year_2030": 0.97,
+            "Startup_Opportunity": "Develop specialized tools for remote teams, focusing on communication, collaboration, and productivity.",
+            "Growth_rate_WoW": 0.02,
+            "YC_chances": 0.6,
+            "Related_trends": "Gig Economy, Digital Transformation"
+        },
+        {
+            "name": "Artificial Intelligence",
+            "description": "The increasing use of AI in various industries.",
+            "Year_2025": 0.6,
+            "Year_2026": 0.65,
+            "Year_2027": 0.7,
+            "Year_2028": 0.75,
+            "Year_2029": 0.8,
+            "Year_2030": 0.9,
+            "Startup_Opportunity": "Create AI-based solutions for specific industry problems, focusing on automation and data analysis.",
+            "Growth_rate_WoW": 0.03,
+            "YC_chances": 0.5,
+            "Related_trends": "Cloud Computing, Internet of Things"
+        },
+        {
+            "name": "Healthcare Technology",
+            "description": "The growing demand for digital health solutions.",
+            "Year_2025": 0.5,
+            "Year_2026": 0.55,
+            "Year_2027": 0.6,
+            "Year_2028": 0.65,
+            "Year_2029": 0.7,
+            "Year_2030": 0.8,
+            "Startup_Opportunity": "Develop telemedicine platforms, mental health apps, or wearable health tech.",
+            "Growth_rate_WoW": 0.04,
+            "YC_chances": 0.4,
+            "Related_trends": "Wellness, Biotechnology"
+        },
+        {
+            "name": "Sustainable Business",
+            "description": "The shift towards environmentally friendly practices.",
+            "Year_2025": 0.4,
+            "Year_2026": 0.45,
+            "Year_2027": 0.5,
+            "Year_2028": 0.55,
+            "Year_2029": 0.6,
+            "Year_2030": 0.7,
+            "Startup_Opportunity": "Create sustainable products or services, focusing on reducing waste, conserving resources, and promoting renewable energy.",
+            "Growth_rate_WoW": 0.05,
+            "YC_chances": 0.3,
+            "Related_trends": "Circular Economy, Green Energy"
+        },
+        {
+            "name": "Online Education",
+            "description": "The growth of online learning due to the pandemic.",
+            "Year_2025": 0.3,
+            "Year_2026": 0.35,
+            "Year_2027": 0.4,
+            "Year_2028": 0.45,
+            "Year_2029": 0.5,
+            "Year_2030": 0.6,
+            "Startup_Opportunity": "Develop online courses, educational software, or virtual tutoring services.",
+            "Growth_rate_WoW": 0.06,
+            "YC_chances": 0.2,
+            "Related_trends": "Remote Work Tools, Gig Economy"
+        }
+    ]
+}
