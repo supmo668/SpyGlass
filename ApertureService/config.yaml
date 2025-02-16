@@ -61,19 +61,21 @@ prompts:
     5. For each trend, identify startup opportunities that:
        - Intersect with at least one other trend
        - Can arise as trend consequences (like diners/motels arising from automobile development)
-       - Can achieve >5% week-over-week growth
+       - Must achieve >5% week-over-week growth (minimum YC qualification)
        - Are unique (cosine similarity <0.85 with existing market solutions)
-    6. Evaluate YC acceptance chances for each opportunity
+    6. Evaluate YC acceptance chances based on uniqueness and growth potential
 
-    Requirements for each trend:
-    - Name (under 50 chars)
-    - Description (under 100 chars)
-    - Growth projections for 2025-2030 (as positive integer percentages, e.g., 65 means 65%)
-    - Startup opportunity description (under 100 chars)
-    - Week-over-week growth rate (as decimal between 0 and 1)
-    - YC acceptance probability (as decimal between 0 and 1)
-    - Related trends (comma separated)
+    Requirements for each trend analysis:
+    - name: Name of the trend/domain that the startup is related to (under 50 chars)
+    - description: Description of the trend and its impact (under 100 chars)
+    - Years 2025-2030: Annual growth/adoption rates as integer percentages (1-100)
+    - Startup_Name: Catchy and descriptive name for the startup opportunity
+    - Startup_Opportunity: Detailed description of how the startup leverages the trends
+    - Growth_rate_WoW: Week-over-week growth rate (must be >5% or 0.05)
+    - YC_chances: Probability of YC acceptance (0.0 to 1.0)
+    - Related_trends: Comma-separated list of trends that the startup leverages
 
+    Rank results by "Growth Rate, WoW multiplied by YC chances".
     Response must follow this exact format:
     {format_instructions}
 

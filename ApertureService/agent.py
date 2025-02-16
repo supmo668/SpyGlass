@@ -47,18 +47,19 @@ except Exception as e:
 
 class TrendOp(BaseModel):
     """Model for a trend operation analysis."""
-    name: str = Field(description="Name of the trend")
-    description: str = Field(description="Detailed description of the trend")
-    Year_2025: int = Field(description="Projected adoption/impact percentage for 2025 (positive integer)", gt=0)
-    Year_2026: int = Field(description="Projected adoption/impact percentage for 2026 (positive integer)", gt=0)
-    Year_2027: int = Field(description="Projected adoption/impact percentage for 2027 (positive integer)", gt=0)
-    Year_2028: int = Field(description="Projected adoption/impact percentage for 2028 (positive integer)", gt=0)
-    Year_2029: int = Field(description="Projected adoption/impact percentage for 2029 (positive integer)", gt=0)
-    Year_2030: int = Field(description="Projected adoption/impact percentage for 2030 (positive integer)", gt=0)
-    Startup_Opportunity: str = Field(description="Detailed description of the startup opportunity related to this trend")
-    Growth_rate_WoW: float = Field(description="Week-over-week growth rate as a decimal (0.0 to 1.0)", ge=0.0, le=1.0)
-    YC_chances: float = Field(description="Probability of YC investment success as a decimal (0.0 to 1.0)", ge=0.0, le=1.0)
-    Related_trends: str = Field(description="Comma-separated list of related trends")
+    name: str = Field(description="Name of the trend/domain that the startup is related to")
+    description: str = Field(description="Description of the trend and its impact on the market")
+    Year_2025: int = Field(description="Annual growth/adoption rate for 2025 as integer percentage (1-100)", gt=0)
+    Year_2026: int = Field(description="Annual growth/adoption rate for 2026 as integer percentage (1-100)", gt=0)
+    Year_2027: int = Field(description="Annual growth/adoption rate for 2027 as integer percentage (1-100)", gt=0)
+    Year_2028: int = Field(description="Annual growth/adoption rate for 2028 as integer percentage (1-100)", gt=0)
+    Year_2029: int = Field(description="Annual growth/adoption rate for 2029 as integer percentage (1-100)", gt=0)
+    Year_2030: int = Field(description="Annual growth/adoption rate for 2030 as integer percentage (1-100)", gt=0)
+    Startup_Name: str = Field(description="Catchy and descriptive name for the startup opportunity")
+    Startup_Opportunity: str = Field(description="Detailed description of the startup opportunity, including how it leverages the trends")
+    Growth_rate_WoW: float = Field(description="Week-over-week growth rate as a decimal (>0.05 for YC qualification)", ge=0.05, le=1.0)
+    YC_chances: float = Field(description="Probability of YC acceptance based on uniqueness and growth potential (0.0 to 1.0)", ge=0.0, le=1.0)
+    Related_trends: str = Field(description="Comma-separated list of related trends that the startup leverages")
 
     @validator('Year_2025', 'Year_2026', 'Year_2027', 'Year_2028', 'Year_2029', 'Year_2030')
     def validate_year(cls, v):
@@ -303,8 +304,8 @@ def extract_trends_from_message(message_content: str) -> List[Dict[str, Any]]:
         valid_trends = []
         required_fields = {
             "name", "description", "Year_2025", "Year_2026", "Year_2027",
-            "Year_2028", "Year_2029", "Year_2030", "Startup_Opportunity",
-            "Growth_rate_WoW", "YC_chances", "Related_trends"
+            "Year_2028", "Year_2029", "Year_2030", "Startup_Name",
+            "Startup_Opportunity", "Growth_rate_WoW", "YC_chances", "Related_trends"
         }
         
         for trend in content["trends"]:

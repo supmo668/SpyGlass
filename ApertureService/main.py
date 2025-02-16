@@ -86,7 +86,7 @@ class AnalysisInput(BaseModel):
     user_input: str
     k: int = Field(default=10, ge=1, le=50, description="Number of trends to generate")
 
-class TrendAnalysisResponse(BaseModel):
+class StartupAnalysisResponse(BaseModel):
     """Model for the complete trend analysis response."""
     trends: List[TrendOp]
 
@@ -116,8 +116,8 @@ async def analyze_business_opportunity(query: AnalysisInput) -> str:
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/analyze", response_model=Union[TrendAnalysisResponse, str])
-async def analyze(query: AnalysisInput) -> Union[TrendAnalysisResponse, str]:
+@app.post("/analyze", response_model=Union[StartupAnalysisResponse, str])
+async def analyze(query: AnalysisInput) -> Union[StartupAnalysisResponse, str]:
     """
     API endpoint to analyze business opportunities and generate startup ideas.
     Returns a trend analysis response or raw string if parsing fails.
@@ -126,7 +126,7 @@ async def analyze(query: AnalysisInput) -> Union[TrendAnalysisResponse, str]:
         json_str = await analyze_business_opportunity(query)
         
         # Use LangChain's PydanticOutputParser
-        parser = PydanticOutputParser(pydantic_object=TrendAnalysisResponse)
+        parser = PydanticOutputParser(pydantic_object=StartupAnalysisResponse)
         try:
             return parser.parse(json_str)
         except Exception as e:
