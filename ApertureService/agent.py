@@ -4,76 +4,34 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_together import ChatTogether
 from langchain.output_parsers import PydanticOutputParser
-from pydantic import BaseModel, Field, validator
 from langgraph.graph import END, StateGraph, START
 import logging
 import traceback
 import yaml
-import json
 import os
 from datetime import datetime
-import uuid
+from models import (
+    TrendOp,
+    KTrendOps,
+    AnalysisInput,
+    StartupAnalysisResponse,
+    IntermediateStep,
+    IntermediateResults
+)
 
 # Configure logging
-logging.basicConfig(
-    filename='debug.log',
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load configuration
-try:
-    with open("config.yaml", "r") as f:
-        config: Dict[str, Any] = yaml.safe_load(f)
-except Exception as e:
-    logger.error(f"Failed to load config.yaml: {str(e)}")
-    raise
-
-# Initialize model
-try:
-    model: ChatTogether = ChatTogether(
-        model=config["model"]["name"],
-        temperature=config["model"]["temperature"],
-        max_tokens=config["model"]["max_tokens"],
-        together_api_key=os.environ['TOGETHERAI_API_KEY'],
-        base_url=config["model"]["base_url"],
-        max_retries=2,
-        timeout=120  # 2 minute timeout
-    )
-except Exception as e:
-    logger.error(f"Failed to initialize ChatTogether model: {str(e)}")
-    raise
-
-class TrendOp(BaseModel):
-    """Model for a trend operation analysis."""
-    name: str = Field(description="Name of the trend/domain that the startup is related to")
-    description: str = Field(description="Description of the trend and its impact on the market")
-    Year_2025: int = Field(description="Annual growth/adoption rate for 2025 as integer percentage (1-100)", gt=0)
-    Year_2026: int = Field(description="Annual growth/adoption rate for 2026 as integer percentage (1-100)", gt=0)
-    Year_2027: int = Field(description="Annual growth/adoption rate for 2027 as integer percentage (1-100)", gt=0)
-    Year_2028: int = Field(description="Annual growth/adoption rate for 2028 as integer percentage (1-100)", gt=0)
-    Year_2029: int = Field(description="Annual growth/adoption rate for 2029 as integer percentage (1-100)", gt=0)
-    Year_2030: int = Field(description="Annual growth/adoption rate for 2030 as integer percentage (1-100)", gt=0)
-    Startup_Name: str = Field(description="Catchy and descriptive name for the startup opportunity")
-    Startup_Opportunity: str = Field(description="Detailed description of the startup opportunity, including how it leverages the trends")
-    Growth_rate_WoW: float = Field(description="Week-over-week growth rate as a decimal (>0.05 for YC qualification)", ge=0.05, le=1.0)
-    YC_chances: float = Field(description="Probability of YC acceptance based on uniqueness and growth potential (0.0 to 1.0)", ge=0.0, le=1.0)
-    Related_trends: str = Field(description="Comma-separated list of related trends that the startup leverages")
-
-    @validator('Year_2025', 'Year_2026', 'Year_2027', 'Year_2028', 'Year_2029', 'Year_2030')
-    def validate_year(cls, v):
-        if v > 100:
-            raise ValueError('Year percentage must be less than or equal to 100')
-        return v
-
-class KTrendOps(BaseModel):
-    """Container for multiple trend operations."""
-    trends: List[TrendOp] = Field(description="List of trend operations to analyze")
+config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
+with open(config_path, "r") as f:
+    config = yaml.safe_load(f)
 
 class AnalysisState(TypedDict):
     """Type definition for analysis state."""
     messages: List[Any]
+    intermediate_results: IntermediateResults
     focus_area: str
     user_input: str
     trend_analysis: str
@@ -399,44 +357,6 @@ def save_analysis_result(result: Dict[str, Any], focus_area: str) -> None:
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
-# Define workflow graph
-workflow: StateGraph = StateGraph(AnalysisState)
-
-# Add nodes
-workflow.add_node("analyze", _analyze_trends)
-workflow.add_node("opportunities", analyze_opportunities)
-workflow.add_node("competitors", analyze_competitors)
-workflow.add_node("generate", generate_final)
-
-# Add edges
-workflow.add_edge(START, "analyze")
-
-# Add conditional edges after trend analysis
-workflow.add_conditional_edges(
-    "analyze",
-    check_analysis_quality,
-    {
-        "analyze_trends": "analyze",
-        "analyze_opportunities": "opportunities"
-    }
-)
-
-# Add remaining edges
-workflow.add_edge("opportunities", "competitors")
-workflow.add_edge("competitors", "generate")
-workflow.add_edge("generate", END)
-
-# Compile graph
-graph: StateGraph = workflow.compile()
-
-from fastapi import HTTPException
-from pydantic import BaseModel
-
-class AnalysisInput(BaseModel):
-    user_input: str
-    k: int
-    generate_novel_ideas: bool
-
 async def analyze_business_opportunity(query: AnalysisInput) -> str:
     """Analyze a business opportunity and return trend analysis."""
     try:
@@ -510,3 +430,33 @@ async def run_analysis(user_input: str, focus_area: str, generate_novel: bool = 
         logger.error(f"Error in run_analysis: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
+
+# Define workflow graph
+workflow: StateGraph = StateGraph(AnalysisState)
+
+# Add nodes
+workflow.add_node("analyze", _analyze_trends)
+workflow.add_node("opportunities", analyze_opportunities)
+workflow.add_node("competitors", analyze_competitors)
+workflow.add_node("generate", generate_final)
+
+# Add edges
+workflow.add_edge(START, "analyze")
+
+# Add conditional edges after trend analysis
+workflow.add_conditional_edges(
+    "analyze",
+    check_analysis_quality,
+    {
+        "analyze_trends": "analyze",
+        "analyze_opportunities": "opportunities"
+    }
+)
+
+# Add remaining edges
+workflow.add_edge("opportunities", "competitors")
+workflow.add_edge("competitors", "generate")
+workflow.add_edge("generate", END)
+
+# Compile graph
+graph: StateGraph = workflow.compile()
