@@ -35,6 +35,7 @@ interface Trend {
   name: string;
   description: string;
   Startup_Opportunity: string;
+  Startup_Name: string;
   Related_trends: string;
   Growth_rate_WoW: number;
   YC_chances: number;
@@ -54,6 +55,7 @@ const years = ["Year_2025", "Year_2026", "Year_2027", "Year_2028", "Year_2029", 
 
 export default function Home() {
   const [trendsData, setTrendsData] = useState<Trend[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedTrend, setSelectedTrend] = useState<Trend | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 const [filteredData, setFilteredData] = useState<Trend[]>([]);
@@ -61,6 +63,7 @@ const [filteredData, setFilteredData] = useState<Trend[]>([]);
   const { theme, setTheme } = useTheme();
 
   const fetchTrends = async () => {
+    setIsLoading(true);
     try {
       console.log('Sending request to API...');
       const response = await fetch('https://simple-lobster-morally.ngrok-free.app/analyze', {
@@ -72,7 +75,7 @@ const [filteredData, setFilteredData] = useState<Trend[]>([]);
         },
         mode: 'cors',
         body: JSON.stringify({
-          user_input: searchQuery || "cat ideas",
+          user_input: searchQuery || "new uses for ai",
           focus_area: "business_opportunities",
           k: 5
         })
@@ -114,6 +117,8 @@ const [filteredData, setFilteredData] = useState<Trend[]>([]);
       // Set some default data or show an error state
       setTrendsData([]);
       // setFilteredData([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -220,8 +225,8 @@ return (
               />
             </div>
             <Button variant="default">
-              <Download className="h-4 w-4 mr-2" />
-              Export Report
+              <Sparkles className="h-4 w-4 mr-2" />
+              Generate Report
             </Button>
           </div>
         </div>
@@ -261,7 +266,12 @@ return (
         {/* Main Content Area */}
         <div className="flex-1 space-y-6">
           {/* Chart Card */}
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden relative">
+            {isLoading && (
+              <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center z-50">
+                <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+              </div>
+            )}
             <CardHeader className="space-y-1">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xl font-semibold">
@@ -350,7 +360,7 @@ return (
           <div className="grid grid-cols-2 gap-4">
             {filteredData.map((trend, idx) => (
               <motion.div
-                key={trend.name}
+                key={`${trend.name}-${trend.Startup_Name}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
@@ -365,7 +375,7 @@ return (
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="font-semibold text-foreground">
-                          {trend.name}
+                          {trend.Startup_Name}
                         </h3>
                         <p className="text-sm text-muted-foreground mt-1">
                           {trend.Startup_Opportunity}
@@ -391,14 +401,14 @@ return (
           <div className="sticky top-24">
             <Card>
               <CardHeader>
-                <CardTitle>Trend Details</CardTitle>
+                <CardTitle>Opportunity Details</CardTitle>
               </CardHeader>
               <CardContent>
                 {selectedTrend ? (
                   <div className="space-y-6">
                     <div>
                       <h2 className="text-xl font-semibold text-foreground">
-                        {selectedTrend.name}
+                        {selectedTrend.Startup_Name}
                       </h2>
                       <p className="mt-2 text-muted-foreground">
                         {selectedTrend.Startup_Opportunity}
