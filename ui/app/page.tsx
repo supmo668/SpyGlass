@@ -9,14 +9,12 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  Legend,
-Label  // Add this
+  Label,
 } from "recharts";
 import Papa from "papaparse";
 import { Search, Sparkles, TrendingUp, Zap, Download } from "lucide-react";
 import { motion } from "framer-motion";
 
-// Import necessary shadcn components
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,15 +27,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { useTheme } from "next-themes"
-import { Moon, Sun } from "lucide-react"
-
 interface CSVRow {
   Trend: string;
   "Startup Opportunity": string;
-  "Related trends": string;
-  "Growth rate, WoW": string;
-  "YC chances": string;
+  "Related Trends": string;
+  "Growth Rate, WoW": string;
+  "YC Chances": string;
   "2025": string;
   "2026": string;
   "2027": string;
@@ -46,11 +41,7 @@ interface CSVRow {
   "2030": string;
 }
 
-interface ProcessedRow
-  extends Omit<
-    CSVRow,
-    "2025" | "2026" | "2027" | "2028" | "2029" | "2030"
-  > {
+interface ProcessedRow extends Omit<CSVRow, "2025" | "2026" | "2027" | "2028" | "2029" | "2030"> {
   "2025": number;
   "2026": number;
   "2027": number;
@@ -61,31 +52,104 @@ interface ProcessedRow
 
 const years = ["2025", "2026", "2027", "2028", "2029", "2030"];
 
+const colors = [
+  "#6366f1", // Indigo
+  "#ec4899", // Pink
+  "#06b6d4", // Cyan
+  "#f59e0b", // Amber
+  "#10b981", // Emerald
+  "#8b5cf6", // Violet
+  "#f43f5e", // Rose
+  "#3b82f6", // Blue
+  "#84cc16", // Lime
+  "#14b8a6", // Teal
+];
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    return (
+      <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-100">
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: data.stroke }} />
+          <span className="font-medium text-sm">{data.name}</span>
+        </div>
+        <p className="text-sm text-gray-600 mt-1">
+          {label}: {data.value}%
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
+// YC Companies mapping
+const ycCompanies = {
+  "Personalized Neurostimulation": [
+    { name: "Neuralink", logo: "/company-logos/neuralink.png" },
+    { name: "Kernel", logo: "/company-logos/kernel.png" }
+  ],
+  "VR/AR/MR for Immersive Experiences": [
+    { name: "Magic Leap", logo: "/company-logos/magic-leap.png" },
+    { name: "Mojo Vision", logo: "/company-logos/mojo-vision.png" }
+  ]
+} as const;
+
+const CompanyLogo = ({ src, name }: { src: string; name: string }) => {
+  const [error, setError] = useState(false);
+  const initials = name
+    .split(' ')
+    .map(word => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+  
+  if (error) {
+    return (
+      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+        <span className="text-xs font-medium text-blue-600">
+          {initials}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+      <img
+        src={src}
+        alt={`${name} logo`}
+        className="w-full h-full object-cover"
+        onError={() => setError(true)}
+      />
+    </div>
+  );
+};
+
 export default function Home() {
   const [csvData, setCsvData] = useState<ProcessedRow[]>([]);
   const [selectedTrend, setSelectedTrend] = useState<ProcessedRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredData, setFilteredData] = useState<ProcessedRow[]>([]);
 
-  const { theme, setTheme } = useTheme();
-
   useEffect(() => {
-    fetch("/Gemini Advanced 20 Pro Experimental.csv")
+    fetch("/On Related Trends Analysis.csv")
       .then((res) => res.text())
       .then((csvText) => {
         Papa.parse(csvText, {
           header: true,
-          skipEmptyLines: true,
           complete: (results) => {
-            const processed: ProcessedRow[] = results.data.map((row: CSVRow) => {
-              const newRow = { ...row } as ProcessedRow;
-              years.forEach((year) => {
-                newRow[year] = parseFloat(newRow[year]?.replace("%", "") || "0");
-              });
-              return newRow;
-            });
-            setCsvData(processed);
-            setFilteredData(processed);
+            const processedData = (results.data as CSVRow[]).map((row) => ({
+              ...row,
+              "2025": parseFloat(row["2025"].replace("%", "")),
+              "2026": parseFloat(row["2026"].replace("%", "")),
+              "2027": parseFloat(row["2027"].replace("%", "")),
+              "2028": parseFloat(row["2028"].replace("%", "")),
+              "2029": parseFloat(row["2029"].replace("%", "")),
+              "2030": parseFloat(row["2030"].replace("%", "")),
+            }));
+            setCsvData(processedData);
+            setFilteredData(processedData);
           },
         });
       });
@@ -106,287 +170,238 @@ export default function Home() {
     return obj;
   });
 
-  const colors = [
-    "#6366f1", // Indigo
-    "#ec4899", // Pink
-    "#06b6d4", // Cyan
-    "#f59e0b", // Amber
-    "#10b981", // Emerald
-    "#8b5cf6", // Violet
-    "#f43f5e", // Rose
-    "#3b82f6", // Blue
-    "#84cc16", // Lime
-    "#14b8a6", // Teal
-  ];
-
-  const getColor = (trend: string, idx: number) => colors[idx % colors.length];
-
   const handleMouseMove = (state: any) => {
-    if (state && state.activePayload && state.activePayload.length > 0) {
+    if (state?.activePayload?.[0]) {
       const trendName = state.activePayload[0].dataKey;
       const selected = csvData.find((row) => row.Trend === trendName);
-      if (selected) setSelectedTrend(selected);
+      if (selected) {
+        console.log("Selected trend:", selected.Trend);
+        console.log("Available YC companies:", Object.keys(ycCompanies));
+        setSelectedTrend(selected);
+      }
     }
   };
 
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0]; // Only show data for the hovered line
-      return (
-        <Card className="border-none shadow-lg">
-          <CardContent className="p-3">
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="h-16 bg-white shadow-sm border-b sticky top-0 z-50">
+        <div className="max-w-[1920px] mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-2">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: data.color }}
-              />
-              <div>
-                <p className="text-sm font-medium">{data.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {label}: {data.value}%
-                </p>
-              </div>
+              <Sparkles className="h-6 w-6 text-indigo-600" />
+              <h1 className="text-xl font-semibold text-gray-900">SpyGlass Trends</h1>
             </div>
-          </CardContent>
-        </Card>
-      );
-    }
-    return null;
-  };
-
-return (
-  <div className="min-h-screen bg-background">
-    {/* Header */}
-    <header className="bg-background/80 backdrop-blur-lg border-b sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center space-x-2">
-            <Sparkles className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-            <h1 className="text-xl font-semibold text-foreground">
-              SpyGlass Trends
-            </h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search trends..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-64"
-              />
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search trends..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 w-64"
+                />
+              </div>
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate Report
+              </Button>
             </div>
-            <Button variant="default">
-              <Download className="h-4 w-4 mr-2" />
-              Export Report
-            </Button>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
 
-    {/* Main Content */}
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex gap-6">
-        {/* Left Legend */}
-        <div className="w-48 pt-24">
-          <div className="sticky top-24 space-y-4">
-            {filteredData.map((trend, idx) => (
-              <div
-                key={trend.Trend}
-                className="flex items-center space-x-2.5 group cursor-pointer"
-                onMouseEnter={() => setSelectedTrend(trend)}
-              >
-                <div className="relative">
-                  <div
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{ backgroundColor: colors[idx % colors.length] }}
-                  />
-                  <div
-                    className="absolute -inset-2 rounded-full opacity-0 group-hover:opacity-20 transition-opacity"
-                    style={{ backgroundColor: colors[idx % colors.length] }}
-                  />
-                </div>
-                <span className="text-sm text-muted-foreground whitespace-nowrap transition-colors group-hover:text-foreground">
-                  {trend.Trend}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Main Content Area */}
-        <div className="flex-1 space-y-6">
-          {/* Chart Card */}
-          <Card className="overflow-hidden">
-            <CardHeader className="space-y-1">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xl font-semibold">
-                  Technology Adoption Trends
-                </CardTitle>
-                <Select defaultValue="5y">
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Time Range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5y">5 Years</SelectItem>
-                    <SelectItem value="3y">3 Years</SelectItem>
-                    <SelectItem value="1y">1 Year</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[600px]">
-                <ResponsiveContainer>
-                  <LineChart
-                    data={pivotedData}
-                    onMouseMove={handleMouseMove}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                  >
-                    <CartesianGrid 
-                      strokeDasharray="3 3" 
-                      stroke="currentColor" 
-                      className="stroke-border/30" 
-                    />
-                    <XAxis
-                      dataKey="year"
-                      tick={{ fontSize: 12 }}
-                      tickLine={false}
-                      axisLine={{ stroke: 'currentColor' }}
-                      className="text-muted-foreground"
-                    >
-                      <Label
-                        value="Timeline (Years)"
-                        position="bottom"
-                        className="text-muted-foreground"
-                      />
-                    </XAxis>
-                    <YAxis
-                      domain={[0, 100]}
-                      tickLine={false}
-                      axisLine={{ stroke: 'currentColor' }}
-                      tick={{ fontSize: 12 }}
-                      className="text-muted-foreground"
-                      tickFormatter={(value) => `${value}%`}
-                    >
-                      <Label
-                        value="Market Adoption (%)"
-                        angle={-90}
-                        position="left"
-                        className="text-muted-foreground"
-                      />
-                    </YAxis>
-                    <Tooltip
-                      content={<CustomTooltip />}
-                      cursor={{ stroke: 'currentColor', strokeWidth: 1, strokeDasharray: '4 4' }}
-                    />
-                    {filteredData.map((trend, idx) => (
-                      <Line
-                        key={trend.Trend}
-                        type="monotone"
-                        dataKey={trend.Trend}
-                        stroke={colors[idx % colors.length]}
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{
-                          r: 6,
-                          fill: colors[idx % colors.length],
-                          stroke: 'white',
-                          strokeWidth: 2,
-                        }}
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Opportunities List */}
-          <div className="grid grid-cols-2 gap-4">
-            {filteredData.map((trend, idx) => (
-              <motion.div
-                key={trend.Trend}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-              >
-                <Card
-                  className={`cursor-pointer transition-all hover:shadow-lg ${
-                    selectedTrend?.Trend === trend.Trend ? "ring-2 ring-primary" : ""
-                  }`}
-                  onClick={() => setSelectedTrend(trend)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-foreground">
-                          {trend.Trend}
-                        </h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {trend["Startup Opportunity"]}
-                        </p>
-                      </div>
-                      <Badge
-                        variant="secondary"
-                        className="flex items-center space-x-1"
-                      >
-                        <TrendingUp className="h-3 w-3" />
-                        <span>{trend["Growth rate, WoW"]}</span>
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right Details Panel */}
-        <div className="w-80">
-          <div className="sticky top-24">
-            <Card>
+      {/* Main Content */}
+      <main className="h-[calc(100vh-64px)] px-2 fixed w-full overflow-hidden">
+        <div className="flex gap-4 h-full max-w-[1920px] mx-auto">
+          {/* Left Legend */}
+          <div className="w-72 shrink-0">
+            <Card className="h-full bg-white">
               <CardHeader>
-                <CardTitle>Trend Details</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-500">
+                  Trend Categories
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {filteredData.map((trend, idx) => (
+                  <div
+                    key={trend.Trend}
+                    className="flex items-start space-x-2.5 px-2 py-1.5 rounded-md hover:bg-gray-50"
+                  >
+                    <div
+                      className="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0"
+                      style={{ backgroundColor: colors[idx % colors.length] }}
+                    />
+                    <span className="text-sm text-gray-700 break-words overflow-wrap-anywhere leading-tight">
+                      {trend.Trend}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Center Content */}
+          <div className="flex-1 flex flex-col gap-4">
+            {/* Chart */}
+            {/* Chart */}
+            <Card className="bg-white">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl font-semibold text-gray-900">
+                    Technology Adoption Trends
+                  </CardTitle>
+                  <Select defaultValue="5y">
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Time Range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5y">5 Years</SelectItem>
+                      <SelectItem value="3y">3 Years</SelectItem>
+                      <SelectItem value="1y">1 Year</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[400px]">
+                  <ResponsiveContainer>
+                    <LineChart
+                      data={pivotedData}
+                      onMouseMove={handleMouseMove}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.4} />
+                      <XAxis
+                        dataKey="year"
+                        tick={{ fontSize: 12, fill: "#6B7280" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "#E5E7EB" }}
+                      >
+                        <Label
+                          value="Timeline (Years)"
+                          position="bottom"
+                          style={{ fill: "#6B7280", fontSize: 12 }}
+                        />
+                      </XAxis>
+                      <YAxis
+                        domain={[0, 100]}
+                        tickLine={false}
+                        axisLine={{ stroke: "#E5E7EB" }}
+                        tick={{ fontSize: 12, fill: "#6B7280" }}
+                        tickFormatter={(value) => `${value}%`}
+                      >
+                        <Label
+                          value="Market Adoption (%)"
+                          angle={-90}
+                          position="left"
+                          style={{ fill: "#6B7280", fontSize: 12 }}
+                        />
+                      </YAxis>
+                      <Tooltip content={<CustomTooltip />} cursor={false} />
+                      {filteredData.map((trend, idx) => (
+                        <Line
+                          key={trend.Trend}
+                          type="monotone"
+                          dataKey={trend.Trend}
+                          stroke={colors[idx % colors.length]}
+                          strokeWidth={selectedTrend?.Trend === trend.Trend ? 3 : 1.5}
+                          dot={false}
+                          activeDot={{
+                            r: 6,
+                            fill: colors[idx % colors.length],
+                            stroke: "white",
+                            strokeWidth: 2,
+                          }}
+                          opacity={
+                            selectedTrend ? (selectedTrend.Trend === trend.Trend ? 1 : 0.2) : 1
+                          }
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Opportunities List */}
+
+            {/* Opportunities List - Scrollable */}
+            <div className="overflow-auto flex-1" style={{ maxHeight: "calc(100vh - 580px)" }}>
+              <div className="grid grid-cols-2 gap-4 pb-4">
+                {filteredData.map((trend, idx) => (
+                  <motion.div
+                    key={trend.Trend}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                  >
+                    <Card
+                      className={`cursor-pointer transition-all hover:shadow-lg bg-white ${
+                        selectedTrend?.Trend === trend.Trend ? "ring-2 ring-indigo-500" : ""
+                      }`}
+                      onClick={() => setSelectedTrend(trend)}
+                      onMouseEnter={() => setSelectedTrend(trend)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900">
+                              {trend["Startup Opportunity"]}
+                            </h3>
+                            <p className="text-sm text-gray-500 mt-1">{trend.Trend}</p>
+                          </div>
+                          <Badge className="bg-indigo-50 text-indigo-700 flex items-center space-x-1 ml-2 shrink-0">
+                            <TrendingUp className="h-3 w-3" />
+                            <span>{trend["Growth Rate, WoW"]} WoW</span>
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Details Panel */}
+          <div className="w-80 shrink-0">
+            <Card className="h-full bg-white">
+              <CardHeader>
+                <CardTitle className="text-gray-900">Trend Details</CardTitle>
               </CardHeader>
               <CardContent>
                 {selectedTrend ? (
                   <div className="space-y-6">
                     <div>
-                      <h2 className="text-xl font-semibold text-foreground">
-                        {selectedTrend.Trend}
-                      </h2>
-                      <p className="mt-2 text-muted-foreground">
-                        {selectedTrend["Startup Opportunity"]}
-                      </p>
+                      <h2 className="text-xl font-semibold text-gray-900">{selectedTrend.Trend}</h2>
+                      <p className="mt-2 text-gray-500">{selectedTrend["Startup Opportunity"]}</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <Card>
+                      <Card className="bg-gray-50">
                         <CardContent className="p-4">
                           <div className="flex items-center space-x-2">
                             <TrendingUp className="h-4 w-4 text-green-500" />
                             <div>
-                              <p className="text-sm text-muted-foreground">Growth Rate</p>
-                              <p className="font-semibold">
-                                {selectedTrend["Growth rate, WoW"]}
+                              <p className="text-sm text-gray-500">Growth Rate, WoW</p>
+                              <p className="font-semibold text-gray-900">
+                                {selectedTrend["Growth Rate, WoW"]}
                               </p>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
 
-                      <Card>
+                      <Card className="bg-gray-50">
                         <CardContent className="p-4">
                           <div className="flex items-center space-x-2">
                             <Zap className="h-4 w-4 text-yellow-500" />
                             <div>
-                              <p className="text-sm text-muted-foreground">YC Chances</p>
-                              <p className="font-semibold">
-                                {selectedTrend["YC chances"]}
+                              <p className="text-sm text-gray-500">YC Chances</p>
+                              <p className="font-semibold text-gray-900">
+                                {selectedTrend["YC Chances"]}
                               </p>
                             </div>
                           </div>
@@ -395,26 +410,42 @@ return (
                     </div>
 
                     <div>
-                      <h3 className="font-medium text-foreground mb-2">
-                        Related Trends
-                      </h3>
+                      <h3 className="font-medium text-gray-900 mb-2">Related Trends</h3>
                       <div className="flex flex-wrap gap-2">
-                        {selectedTrend["Related trends"]
-                          .split(",")
-                          .map((trend) => (
-                            <Badge
-                              key={trend.trim()}
-                              variant="secondary"
-                              className="text-sm"
-                            >
-                              {trend.trim()}
-                            </Badge>
-                          ))}
+                        {selectedTrend["Related Trends"].split(",").map((trend) => (
+                          <Badge key={trend.trim()} className="bg-gray-100 text-gray-700">
+                            {trend.trim()}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-2">
+                        YC-Funded Companies
+                      </h3>
+                      <div className="flex flex-col space-y-2">
+                        {selectedTrend && ycCompanies[selectedTrend.Trend]?.map((company) => (
+                          <div
+                            key={company.name}
+                            className="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                          >
+                            <CompanyLogo src={company.logo} name={company.name} />
+                            <span className="ml-3 text-sm font-medium text-gray-900">
+                              {company.name}
+                            </span>
+                          </div>
+                        ))}
+                        {selectedTrend && !ycCompanies[selectedTrend.Trend] && (
+                          <div className="text-sm text-gray-500">
+                            No YC companies found for this trend
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="flex items-center justify-center h-full text-gray-500">
                     Select a trend to view details
                   </div>
                 )}
@@ -422,7 +453,7 @@ return (
             </Card>
           </div>
         </div>
-      </div>
-    </main>
-  </div>
-);
+      </main>
+    </div>
+  );
+}
