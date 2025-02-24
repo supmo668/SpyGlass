@@ -39,6 +39,7 @@ interface ProcessedRow {
   "2028": number;  // Maps to "Year_2028"
   "2029": number;  // Maps to "Year_2029"
   "2030": number;  // Maps to "Year_2030"
+  [key: string]: string | number;
 }
 
 const years = ["2025", "2026", "2027", "2028", "2029", "2030"];
@@ -75,7 +76,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 // YC Companies mapping
-const ycCompanies = {
+type YCCompanyInfo = {
+  name: string;
+  logo: string;
+};
+
+type YCTrends = "Personalized Neurostimulation" | "VR/AR/MR for Immersive Experiences";
+
+const ycCompanies: Record<YCTrends, readonly YCCompanyInfo[]> = {
   "Personalized Neurostimulation": [
     { name: "Neuralink", logo: "/company-logos/neuralink.png" },
     { name: "Kernel", logo: "/company-logos/kernel.png" }
@@ -204,7 +212,7 @@ export default function Home() {
   const pivotedData = years.map((year) => {
     const obj: { year: string; [key: string]: number | string } = { year };
     filteredData.forEach((row) => {
-      obj[row.Trend] = row[year];
+      obj[row.Trend] = row[year as keyof ProcessedRow];
     });
     return obj;
   });
@@ -482,7 +490,7 @@ export default function Home() {
                           YC-Funded Companies
                         </h3>
                         <div className="flex flex-col space-y-2">
-                          {selectedTrend && ycCompanies[selectedTrend.Trend]?.map((company) => (
+                          {selectedTrend && ycCompanies[selectedTrend.Trend as YCTrends]?.map((company) => (
                             <div
                               key={company.name}
                               className="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
@@ -493,7 +501,7 @@ export default function Home() {
                               </span>
                             </div>
                           ))}
-                          {selectedTrend && !ycCompanies[selectedTrend.Trend] && (
+                          {selectedTrend && !ycCompanies[selectedTrend.Trend as YCTrends] && (
                             <div className="text-sm text-gray-500">
                               No YC companies found for this trend
                             </div>

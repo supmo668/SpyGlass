@@ -1,4 +1,4 @@
-// File: /Users/gemechutaye/Downloads/spyGlass/SpyGlass-zkysar-ui 2/ui/app/layout.tsx
+// File: /home/mmym_ezout/projects/SpyGlass/ui/app/layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
