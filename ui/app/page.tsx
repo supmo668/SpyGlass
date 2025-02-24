@@ -141,14 +141,14 @@ export default function Home() {
       const response = await fetch("https://simple-lobster-morally.ngrok-free.app/analyze", {
         method: "POST",
         headers: {
-          accept: "application/json",
+          "Accept": "application/json",
           "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "1"
+          "Origin": window.location.origin
         },
-        mode: "cors",
+        credentials: 'omit',  // Don't send credentials
         body: JSON.stringify({
-          generate_novel_ideas: true,
           user_input: searchQuery || "new uses for ai",
+          focus_area: "business_opportunities",
           k: 5
         })
       });
