@@ -26,35 +26,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-
 interface ProcessedRow {
-  Trend: string;  // Maps to "name" in the API
-  "Startup Opportunity": string;  // Maps to "Startup_Opportunity" or "description"
-  "Related Trends": string;  // Maps to "Related_trends"
-  "Growth Rate, WoW": number;  // Maps to "Growth_rate_WoW"
-  "YC Chances": number;  // Maps to "YC_chances"
-  "2025": number;  // Maps to "Year_2025"
-  "2026": number;  // Maps to "Year_2026"
-  "2027": number;  // Maps to "Year_2027"
-  "2028": number;  // Maps to "Year_2028"
-  "2029": number;  // Maps to "Year_2029"
-  "2030": number;  // Maps to "Year_2030"
+  Trend: string;
+  "Startup Opportunity": string;
+  "Related Trends": string;
+  "Growth Rate, WoW": number;
+  "YC Chances": number;
+  "2025": number;
+  "2026": number;
+  "2027": number;
+  "2028": number;
+  "2029": number;
+  "2030": number;
   [key: string]: string | number;
 }
 
 const years = ["2025", "2026", "2027", "2028", "2029", "2030"];
 
 const colors = [
-  "#6366f1", // Indigo
-  "#ec4899", // Pink
-  "#06b6d4", // Cyan
-  "#f59e0b", // Amber
-  "#10b981", // Emerald
-  "#8b5cf6", // Violet
-  "#f43f5e", // Rose
-  "#3b82f6", // Blue
-  "#84cc16", // Lime
-  "#14b8a6", // Teal
+  "#6366f1",
+  "#ec4899",
+  "#06b6d4",
+  "#f59e0b",
+  "#10b981",
+  "#8b5cf6",
+  "#f43f5e",
+  "#3b82f6",
+  "#84cc16",
+  "#14b8a6",
 ];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -63,7 +62,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return (
       <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-100">
         <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: data.stroke }} />
+          <div
+            className="w-2 h-2 rounded-full"
+            style={{ backgroundColor: data.stroke }}
+          />
           <span className="font-medium text-sm">{data.name}</span>
         </div>
         <p className="text-sm text-gray-600 mt-1">
@@ -75,7 +77,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// YC Companies mapping
 type YCCompanyInfo = {
   name: string;
   logo: string;
@@ -86,19 +87,19 @@ type YCTrends = "Personalized Neurostimulation" | "VR/AR/MR for Immersive Experi
 const ycCompanies: Record<YCTrends, readonly YCCompanyInfo[]> = {
   "Personalized Neurostimulation": [
     { name: "Neuralink", logo: "/company-logos/neuralink.png" },
-    { name: "Kernel", logo: "/company-logos/kernel.png" }
+    { name: "Kernel", logo: "/company-logos/kernel.png" },
   ],
   "VR/AR/MR for Immersive Experiences": [
     { name: "Magic Leap", logo: "/company-logos/magic-leap.png" },
-    { name: "Mojo Vision", logo: "/company-logos/mojo-vision.png" }
-  ]
+    { name: "Mojo Vision", logo: "/company-logos/mojo-vision.png" },
+  ],
 } as const;
 
 const CompanyLogo = ({ src, name }: { src: string; name: string }) => {
   const [error, setError] = useState(false);
   const initials = name
     .split(" ")
-    .map(word => word[0])
+    .map((word) => word[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);
@@ -130,50 +131,52 @@ export default function Home() {
   const [filteredData, setFilteredData] = useState<ProcessedRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-
+  const [isLegendOpen, setIsLegendOpen] = useState(false); // Toggle for legend on mobile
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false); // Toggle for details on mobile
 
   const fetchTrends = async () => {
     setIsLoading(true);
     setError(null);
     try {
       console.log("Sending request to API...");
-      const response = await fetch("https://simple-lobster-morally.ngrok-free.app/analyze", {
-        method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-          "Origin": window.location.origin
-        },
-        credentials: 'omit',  // Don't send credentials
-        body: JSON.stringify({
-          user_input: searchQuery || "new uses for ai",
-          focus_area: "business_opportunities",
-          k: 5
-        })
-      });
-  
+      const response = await fetch(
+        "https://simple-lobster-morally.ngrok-free.app/analyze",
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Origin: window.location.origin,
+          },
+          credentials: "omit",
+          body: JSON.stringify({
+            user_input: searchQuery || "new uses for ai",
+            focus_area: "business_opportunities",
+            k: 5,
+          }),
+        }
+      );
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
       }
-  
+
       console.log("Response received, parsing JSON...");
       const data = await response.json();
       console.log("Raw API Response:", data);
-  
+
       if (
-        data.data &&  // Note: Changed from data.data to data
+        data.data &&
         data.data.final_result &&
         Array.isArray(data.data.final_result.trends)
       ) {
         console.log("Setting trend data with", data.data.final_result.trends.length, "trends");
-        
         const processedTrends = data.data.final_result.trends.map((trend: any) => ({
           Trend: trend.name || "Unknown Trend",
           "Startup Opportunity": trend.Startup_Opportunity || trend.description || "Unknown Opportunity",
           "Related Trends": trend.Related_trends || "",
-          "Growth Rate, WoW": trend.Growth_rate_WoW || 0,  // Already a percentage
-          "YC Chances": trend.YC_chances < 1 ? trend.YC_chances * 100 : trend.YC_chances || 0,  // Convert to percentage if needed
+          "Growth Rate, WoW": trend.Growth_rate_WoW || 0,
+          "YC Chances": trend.YC_chances < 1 ? trend.YC_chances * 100 : trend.YC_chances || 0,
           "2025": trend.Year_2025 || 0,
           "2026": trend.Year_2026 || 0,
           "2027": trend.Year_2027 || 0,
@@ -181,7 +184,7 @@ export default function Home() {
           "2029": trend.Year_2029 || 0,
           "2030": trend.Year_2030 || 0,
         })) as ProcessedRow[];
-  
+
         setTrendsData(processedTrends);
         setFilteredData(processedTrends);
         if (processedTrends.length > 0) {
@@ -201,7 +204,7 @@ export default function Home() {
       setIsLoading(false);
     }
   };
-  
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchTrends();
@@ -230,25 +233,22 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="h-16 bg-white shadow-sm border-b sticky top-0 z-50">
+      <header className="h-auto bg-white shadow-sm border-b sticky top-0 z-50 py-2">
         <div className="max-w-[1920px] mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center space-x-2">
               <Sparkles className="h-6 w-6 text-indigo-600" />
-              <h1 className="text-xl font-semibold text-gray-900">
-                SpyGlass Trends
-              </h1>
+              <h1 className="text-xl font-semibold text-gray-900">SpyGlass Trends</h1>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
+            <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-4 w-full md:w-auto">
+              <div className="relative w-full md:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   type="text"
                   placeholder="Search trends..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 w-64"
+                  className="pl-10 w-full"
                 />
               </div>
               <Button variant="default" onClick={() => fetchTrends()}>
@@ -281,17 +281,26 @@ export default function Home() {
           </div>
         </div>
       ) : (
-        <main className="h-[calc(100vh-64px)] px-2 fixed w-full overflow-hidden">
-          <div className="flex gap-4 h-full max-w-[1920px] mx-auto">
+        <main className="px-2 py-4 overflow-y-auto">
+          <div className="flex flex-col md:flex-row gap-4 max-w-[1920px] mx-auto h-full">
             {/* Left Legend */}
-            <div className="w-72 shrink-0">
+            <div className="w-full md:w-72 shrink-0">
               <Card className="h-full bg-white">
-                <CardHeader>
+                <CardHeader className="flex justify-between items-center">
                   <CardTitle className="text-sm font-medium text-gray-500">
                     Trend Categories
                   </CardTitle>
+                  <Button
+                    variant="ghost"
+                    className="md:hidden"
+                    onClick={() => setIsLegendOpen(!isLegendOpen)}
+                  >
+                    {isLegendOpen ? "Hide" : "Show"}
+                  </Button>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent
+                  className={`${isLegendOpen ? "block" : "hidden"} md:block space-y-3`}
+                >
                   {filteredData.map((trend, idx) => (
                     <div
                       key={trend.Trend}
@@ -332,7 +341,7 @@ export default function Home() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[400px]">
+                  <div className="h-[200px] sm:h-[300px] md:h-[400px]">
                     <ResponsiveContainer>
                       <LineChart
                         data={pivotedData}
@@ -381,7 +390,9 @@ export default function Home() {
                               stroke: "white",
                               strokeWidth: 2,
                             }}
-                            opacity={selectedTrend ? (selectedTrend.Trend === trend.Trend ? 1 : 0.2) : 1}
+                            opacity={
+                              selectedTrend ? (selectedTrend.Trend === trend.Trend ? 1 : 0.2) : 1
+                            }
                           />
                         ))}
                       </LineChart>
@@ -390,9 +401,9 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              {/* Opportunities List - Scrollable */}
-              <div className="overflow-auto flex-1" style={{ maxHeight: "calc(100vh - 580px)" }}>
-                <div className="grid grid-cols-2 gap-4 pb-4">
+              {/* Opportunities List */}
+              <div className="overflow-auto flex-1" style={{ maxHeight: "calc(100vh - 400px)" }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4">
                   {filteredData.map((trend, idx) => (
                     <motion.div
                       key={trend.Trend}
@@ -413,9 +424,7 @@ export default function Home() {
                               <h3 className="font-semibold text-gray-900">
                                 {trend["Startup Opportunity"]}
                               </h3>
-                              <p className="text-sm text-gray-500 mt-1">
-                                {trend.Trend}
-                              </p>
+                              <p className="text-sm text-gray-500 mt-1">{trend.Trend}</p>
                             </div>
                             <Badge className="bg-indigo-50 text-indigo-700 flex items-center space-x-1 ml-2 shrink-0">
                               <TrendingUp className="h-3 w-3" />
@@ -431,16 +440,25 @@ export default function Home() {
             </div>
 
             {/* Right Details Panel */}
-            <div className="w-80 shrink-0">
+            <div className="w-full md:w-80 shrink-0">
               <Card className="h-full bg-white">
-                <CardHeader>
+                <CardHeader className="flex justify-between items-center">
                   <CardTitle className="text-gray-900">Trend Details</CardTitle>
+                  <Button
+                    variant="ghost"
+                    className="md:hidden"
+                    onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+                  >
+                    {isDetailsOpen ? "Hide" : "Show"}
+                  </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className={`${isDetailsOpen ? "block" : "hidden"} md:block`}>
                   {selectedTrend ? (
                     <div className="space-y-6">
                       <div>
-                        <h2 className="text-xl font-semibold text-gray-900">{selectedTrend.Trend}</h2>
+                        <h2 className="text-xl font-semibold text-gray-900">
+                          {selectedTrend.Trend}
+                        </h2>
                         <p className="mt-2 text-gray-500">{selectedTrend["Startup Opportunity"]}</p>
                       </div>
 
@@ -486,21 +504,20 @@ export default function Home() {
                       </div>
 
                       <div>
-                        <h3 className="font-medium text-gray-900 mb-2">
-                          YC-Funded Companies
-                        </h3>
+                        <h3 className="font-medium text-gray-900 mb-2">YC-Funded Companies</h3>
                         <div className="flex flex-col space-y-2">
-                          {selectedTrend && ycCompanies[selectedTrend.Trend as YCTrends]?.map((company) => (
-                            <div
-                              key={company.name}
-                              className="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                            >
-                              <CompanyLogo src={company.logo} name={company.name} />
-                              <span className="ml-3 text-sm font-medium text-gray-900">
-                                {company.name}
-                              </span>
-                            </div>
-                          ))}
+                          {selectedTrend &&
+                            ycCompanies[selectedTrend.Trend as YCTrends]?.map((company) => (
+                              <div
+                                key={company.name}
+                                className="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                              >
+                                <CompanyLogo src={company.logo} name={company.name} />
+                                <span className="ml-3 text-sm font-medium text-gray-900">
+                                  {company.name}
+                                </span>
+                              </div>
+                            ))}
                           {selectedTrend && !ycCompanies[selectedTrend.Trend as YCTrends] && (
                             <div className="text-sm text-gray-500">
                               No YC companies found for this trend
