@@ -13,3 +13,4 @@ openai
 langgraph
 langchain-community
 sentence-transformers
+fastapi-cache2>=0.1.9

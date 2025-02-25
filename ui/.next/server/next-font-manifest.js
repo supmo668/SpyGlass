@@ -1,1 +1,1 @@
-self.__NEXT_FONT_MANIFEST='{"pages":{},"app":{"/home/mmym_ezout/projects/SpyGlass/ui/app/layout":["static/media/e11418ac562b8ac1-s.p.woff2"]},"appUsingSizeAdjust":true,"pagesUsingSizeAdjust":false}';
+self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/home/mmym_ezout/projects/SpyGlass/ui/app/layout\":[\"static/media/e11418ac562b8ac1-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"

@@ -1,13 +1,19 @@
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import os
 import yaml
 import weave
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import json
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
+from fastapi_cache.decorator import cache
+from fastapi_cache.coder import JsonCoder
+from contextlib import asynccontextmanager
 
 from models import (
     AnalysisInput,
@@ -41,10 +47,18 @@ with open(config_path, "r") as f:
     config = yaml.safe_load(f)
 
 # Create FastAPI app
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize in-memory cache
+    FastAPICache.init(InMemoryBackend(), prefix="spyglass-cache:", coder=JsonCoder)
+    yield
+    # Shutdown: Nothing to clean up for in-memory cache
+
 app = FastAPI(
     title="SpyGlass API",
     description="API for business opportunity analysis",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Configure CORS
@@ -53,12 +67,13 @@ origins = [
     "http://localhost:8000",  # FastAPI development server
     "https://spyglass-ui.vercel.app",  # Production UI
     "https://*.ngrok-free.app",  # ngrok tunnels
+    "*"  # Allow all origins temporarily for debugging
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=False,  # Must be False when allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
@@ -103,10 +118,14 @@ async def analyze_business_opportunity(query: AnalysisInput) -> AnalysisOutput:
         )
 
 @app.post("/analyze", response_model=AnalysisOutput)
+@cache(expire=30 * 24 * 60 * 60, key_builder=lambda query: f"analyze:{query.user_input}:{query.k}")  # Cache for 30 days
 async def analyze(query: AnalysisInput) -> AnalysisOutput:
     """Analyze a business opportunity and return trend analysis with all intermediate steps."""
     try:
-        return await analyze_business_opportunity(query)
+        logger.info(f"Processing analysis request for: {query.user_input}")
+        result = await analyze_business_opportunity(query)
+        logger.info(f"Analysis completed for: {query.user_input}")
+        return result
     except Exception as e:
         logger.error(f"Error in analyze endpoint: {str(e)}")
         return AnalysisOutput(

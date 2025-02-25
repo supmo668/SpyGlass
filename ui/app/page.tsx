@@ -172,8 +172,8 @@ export default function Home() {
           Trend: trend.name || "Unknown Trend",
           "Startup Opportunity": trend.Startup_Opportunity || trend.description || "Unknown Opportunity",
           "Related Trends": trend.Related_trends || "",
-          "Growth Rate, WoW": trend.Growth_rate_WoW || 0,  // Already a number, no parseFloat needed
-          "YC Chances": trend.YC_chances || 0,  // Already a number, no parseFloat needed
+          "Growth Rate, WoW": trend.Growth_rate_WoW || 0,  // Already a percentage
+          "YC Chances": trend.YC_chances < 1 ? trend.YC_chances * 100 : trend.YC_chances || 0,  // Convert to percentage if needed
           "2025": trend.Year_2025 || 0,
           "2026": trend.Year_2026 || 0,
           "2027": trend.Year_2027 || 0,
@@ -419,7 +419,7 @@ export default function Home() {
                             </div>
                             <Badge className="bg-indigo-50 text-indigo-700 flex items-center space-x-1 ml-2 shrink-0">
                               <TrendingUp className="h-3 w-3" />
-                              <span>{trend["Growth Rate, WoW"]} WoW</span>
+                              <span>{trend["Growth Rate, WoW"]} % WoW</span>
                             </Badge>
                           </div>
                         </CardContent>
@@ -452,7 +452,7 @@ export default function Home() {
                               <div>
                                 <p className="text-sm text-gray-500">Growth Rate, WoW</p>
                                 <p className="font-semibold text-gray-900">
-                                  {selectedTrend["Growth Rate, WoW"]}
+                                  {selectedTrend["Growth Rate, WoW"]}%
                                 </p>
                               </div>
                             </div>
@@ -464,9 +464,9 @@ export default function Home() {
                             <div className="flex items-center space-x-2">
                               <Zap className="h-4 w-4 text-yellow-500" />
                               <div>
-                                <p className="text-sm text-gray-500">YC Chances</p>
+                                <p className="text-sm text-gray-500">YC Acceptance Probability</p>
                                 <p className="font-semibold text-gray-900">
-                                  {selectedTrend["YC Chances"]}
+                                  {selectedTrend["YC Chances"].toFixed(1)}%
                                 </p>
                               </div>
                             </div>

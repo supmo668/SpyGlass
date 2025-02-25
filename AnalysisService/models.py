@@ -13,8 +13,8 @@ class TrendOp(BaseModel):
     Year_2030: int = Field(description="Annual growth/adoption rate for 2030 as integer percentage (1-100)", gt=0)
     Startup_Name: str = Field(description="Catchy and descriptive name for the startup opportunity")
     Startup_Opportunity: str = Field(description="Detailed description of the startup opportunity, including how it leverages the trends")
-    Growth_rate_WoW: float = Field(description="Week-over-week growth rate as a decimal (>0.05 for YC qualification)", ge=0.05, le=1.0)
-    YC_chances: float = Field(description="Probability of YC acceptance based on uniqueness and growth potential (0.0 to 1.0)", ge=0.0, le=1.0)
+    Growth_rate_WoW: float = Field(description="Percentage of Week-over-week growth between 0 and 100 (>50 for YC qualification)", ge=0)
+    YC_chances: float = Field(description="Percentage of probability of YC acceptance based on uniqueness and growth potential of the start-up in percentage between 0 to 100", ge=0.0, le=100.0)
     Related_trends: str = Field(description="Comma-separated list of related trends that the startup leverages")
 
     @field_validator('Year_2025', 'Year_2026', 'Year_2027', 'Year_2028', 'Year_2029', 'Year_2030')
@@ -37,8 +37,8 @@ class TrendOp(BaseModel):
                 'Year_2030': 96,
                 'Startup_Name': 'WorkFlow AI',
                 'Startup_Opportunity': 'Create user-friendly, secure remote work platforms',
-                'Growth_rate_WoW': 0.07,
-                'YC_chances': 0.65,
+                'Growth_rate_WoW': 7,
+                'YC_chances': 65,
                 'Related_trends': 'Digital Transformation, Gig Economy'
             }]
         }
