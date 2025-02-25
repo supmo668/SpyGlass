@@ -148,8 +148,8 @@ export default function Home() {
         credentials: 'omit',  // Don't send credentials
         body: JSON.stringify({
           user_input: searchQuery || "new uses for ai",
-          focus_area: "business_opportunities",
-          k: 5
+          focus_area: "start-up opportunities",
+          k: 10
         })
       });
   

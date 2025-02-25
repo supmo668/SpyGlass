@@ -13,6 +13,7 @@ from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
 from fastapi_cache.decorator import cache
 from fastapi_cache.coder import JsonCoder
+import hashlib
 from contextlib import asynccontextmanager
 
 from models import (
@@ -31,11 +32,12 @@ load_dotenv()
 weave.init("SpyGlass-API")
 
 # Configure logging
+log_file = os.path.join(os.path.dirname(__file__), "app.log")
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("debug.log"),
+        logging.FileHandler(log_file),
         logging.StreamHandler()
     ]
 )
@@ -49,8 +51,10 @@ with open(config_path, "r") as f:
 # Create FastAPI app
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize in-memory cache
-    FastAPICache.init(InMemoryBackend(), prefix="spyglass-cache:", coder=JsonCoder)
+    # Startup: Initialize in-memory cache with a larger size
+    backend = InMemoryBackend()
+    FastAPICache.init(backend, prefix="spyglass-cache:", coder=JsonCoder)
+    logger.info("Cache initialized")
     yield
     # Shutdown: Nothing to clean up for in-memory cache
 
@@ -80,21 +84,30 @@ app.add_middleware(
     max_age=86400,  # Cache preflight requests for 24 hours
 )
 
-@weave.op()
-async def analyze_business_opportunity(query: AnalysisInput) -> AnalysisOutput:
-    """Analyze a business opportunity and return trend analysis with intermediate steps."""
+def get_cache_key(query: AnalysisInput) -> str:
+    """Generate a deterministic cache key from the query."""
+    # Create a string with all relevant query parameters
+    key_str = f"{query.user_input}:{query.k}:{query.generate_novel_ideas}"
+    # Create a hash to ensure the key is a valid cache key
+    return f"analyze:{hashlib.md5(key_str.encode()).hexdigest()}"
+
+async def cached_analysis(query: AnalysisInput) -> AnalysisOutput:
+    """Cached wrapper for the analysis computation."""
     try:
-        # Map user_query to user_input if needed
-        if hasattr(query, 'user_query') and not hasattr(query, 'user_input'):
-            query.user_input = query.user_query
-            
-        # Log the request
-        logger.info(f"Received analysis request: {query.user_input}")
+        logger.info(f"Cache miss - Starting heavy computation for: {query.user_input}")
+        start_time = datetime.now()
         
-        # Run analysis and get results including intermediate steps
+        # Run the analysis - it creates its own IntermediateResults
         results = await run_analysis(query)
         
-        # Return structured response
+        # Update execution time if needed
+        if not results.execution_time:
+            end_time = datetime.now()
+            results.execution_time = (end_time - start_time).total_seconds()
+        
+        logger.info(f"Analysis computation completed in {results.execution_time:.2f} seconds")
+        
+        # Return the results
         return AnalysisOutput(
             status="success",
             data={
@@ -103,13 +116,11 @@ async def analyze_business_opportunity(query: AnalysisInput) -> AnalysisOutput:
                 "competitor_analysis": results.competitor_analysis.model_dump() if results.competitor_analysis else None,
                 "final_result": results.final_result.model_dump() if results.final_result else None,
                 "execution_time": results.execution_time,
-                # Change 'steps' to 'refinement_steps'
                 "refinement_steps": [step.model_dump() for step in results.refinement_steps] if results.refinement_steps else []
             }
         )
-        
     except Exception as e:
-        logger.error(f"Error processing analysis request: {str(e)}")
+        logger.error(f"Error in cached analysis: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return AnalysisOutput(
             status="error",
@@ -117,15 +128,42 @@ async def analyze_business_opportunity(query: AnalysisInput) -> AnalysisOutput:
             error=str(e)
         )
 
+@weave.op()
+async def analyze_business_opportunity(query: AnalysisInput) -> AnalysisOutput:
+    """Analyze a business opportunity and return trend analysis with intermediate steps."""
+    # Map user_query to user_input if needed
+    if hasattr(query, 'user_query') and not hasattr(query, 'user_input'):
+        query.user_input = query.user_query
+        
+    # Get cache key
+    cache_key = get_cache_key(query)
+    logger.info(f"Checking cache for key: {cache_key}")
+    
+    # Try to get from cache first
+    try:
+        backend = FastAPICache.get_backend()
+        cached_result = await backend.get(cache_key)
+        if cached_result is not None:
+            logger.info(f"Cache hit for: {query.user_input}")
+            return JsonCoder.decode(cached_result)
+    except Exception as e:
+        logger.warning(f"Cache check failed: {str(e)}")
+    
+    # If not in cache, compute and store
+    result = await cached_analysis(query)
+    try:
+        backend = FastAPICache.get_backend()
+        await backend.set(cache_key, JsonCoder.encode(result), expire=30 * 24 * 60 * 60)  # 30 days
+    except Exception as e:
+        logger.warning(f"Failed to store in cache: {str(e)}")
+    
+    return result
+
 @app.post("/analyze", response_model=AnalysisOutput)
-@cache(expire=30 * 24 * 60 * 60, key_builder=lambda query: f"analyze:{query.user_input}:{query.k}")  # Cache for 30 days
 async def analyze(query: AnalysisInput) -> AnalysisOutput:
     """Analyze a business opportunity and return trend analysis with all intermediate steps."""
     try:
-        logger.info(f"Processing analysis request for: {query.user_input}")
-        result = await analyze_business_opportunity(query)
-        logger.info(f"Analysis completed for: {query.user_input}")
-        return result
+        return await analyze_business_opportunity(query)
     except Exception as e:
         logger.error(f"Error in analyze endpoint: {str(e)}")
         return AnalysisOutput(
