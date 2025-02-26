@@ -20,7 +20,7 @@ fi
 
 # Start the FastAPI server with auto-reload
 echo "Starting development server..."
-uvicorn main:app --reload --host 0.0.0.0 --port 8000 --workers 1 \
+uvicorn main:app --reload --host 0.0.0.0 --port 8080 --workers 1 \
     --log-level debug \
     --reload-dir "$PROJECT_ROOT" \
     --app-dir "$PROJECT_ROOT"
