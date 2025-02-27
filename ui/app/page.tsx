@@ -66,9 +66,34 @@ const starterTrends = starterQueries.map((query, idx) => ({
   ],
 }));
 
-const TrendChart = ({ trendsData }) => {
+interface TrendDataPoint {
+  year: string;
+  growth: number;
+}
+
+interface TrendItem {
+  name: string;
+  data: TrendDataPoint[];
+}
+
+interface TrendChartProps {
+  trendsData: TrendItem[];
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<any>;
+  label?: string;
+}
+
+interface ChartDataPoint {
+  year: string;
+  [key: string]: string | number;
+}
+
+const TrendChart = ({ trendsData }: TrendChartProps) => {
   const chartData = trendsData[0]?.data.map((item) => {
-    const dataPoint = { year: item.year };
+    const dataPoint: ChartDataPoint = { year: item.year };
     trendsData.forEach((trend) => {
       dataPoint[trend.name] = trend.data.find((d) => d.year === item.year)?.growth || 0;
     });
@@ -116,7 +141,7 @@ const TrendChart = ({ trendsData }) => {
   );
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0];
     return (
@@ -291,7 +316,7 @@ export default function Home() {
       console.log("Processed trends array:", processedTrends);
 
       setStepQueue(prev => [...prev, "Updating trends data…"]);
-      const sortedTrends = processedTrends.sort((a, b) => b["Growth Rate, WoW"] - a["Growth Rate, WoW"]);
+      const sortedTrends = processedTrends.sort((a: ProcessedRow, b: ProcessedRow) => b["Growth Rate, WoW"] - a["Growth Rate, WoW"]);
       setTrendsData(sortedTrends);
       setFilteredData(sortedTrends);
       console.log("Updated trendsData (sorted):", sortedTrends);
@@ -308,9 +333,10 @@ export default function Home() {
 
       setStepQueue(prev => [...prev, "Preparing results…"]);
       await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (err) {
-      setError(err.message || "Failed to fetch trends from API");
-      console.error("Error during fetchTrends:", err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch trends from API";
+      setError(errorMessage);
+      console.error("Error during fetchTrends:", errorMessage);
       setTrendsData([]);
       setFilteredData([]);
     } finally {
@@ -347,7 +373,7 @@ export default function Home() {
       </header>
 
       {!hasSearched ? (
-        <div className="flex flex-col items-center min-h-[calc(100vh-64px)] px-4 py-6 bg-gradient-to-b from-gray-50 to-gray-200">
+        <div className="flex flex-col items-center custom-min-height px-4 py-6 bg-gradient-to-b from-gray-50 to-gray-200">
           <div className="w-full max-w-4xl flex-1 flex flex-col justify-between pb-0">  
             <div>
               <div className="relative h-[300px] sm:h-[400px]" aria-label="Interactive trend chart">
@@ -390,7 +416,7 @@ export default function Home() {
           </div>
         </div>
       ) : isLoading ? (
-        <div className="flex flex-col items-center min-h-[calc(100vh-64px)] px-4 pt-6 pb-2 bg-gradient-to-b from-gray-50 to-gray-200">
+        <div className="flex flex-col items-center custom-min-height px-4 pt-6 pb-2 bg-gradient-to-b from-gray-50 to-gray-200">
           <div className="w-full max-w-4xl flex-1 flex flex-col justify-center items-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -449,7 +475,7 @@ export default function Home() {
           />
         </div>
       ) : error ? (
-        <div className="flex flex-col items-center min-h-[calc(100vh-64px)] px-4 pt-6 pb-2 bg-gradient-to-b from-gray-50 to-gray-200">
+        <div className="flex flex-col items-center custom-min-height px-4 pt-6 pb-2 bg-gradient-to-b from-gray-50 to-gray-200">
           <div className="w-full max-w-4xl flex-1 flex flex-col justify-between pb-0">
             <div className="text-center text-red-600 p-4 rounded-lg">
               <h3 className="text-lg font-semibold mb-2">Error Loading Data</h3>
@@ -477,7 +503,7 @@ export default function Home() {
         </div>
       ) : (
         <motion.main
-          className="px-2 py-4 min-h-[calc(100vh-64px)] overflow-y-auto" 
+          className="px-2 py-4 custom-min-height overflow-y-auto" 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}

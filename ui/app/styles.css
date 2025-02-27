@@ -37,7 +37,7 @@
     height: auto !important;
   }
   
-  .min-h-[calc(100vh-64px)] {
+  .custom-min-height {
     height: auto;
     min-height: 100%;
   }
@@ -50,7 +50,7 @@
     height: 100vh;
   }
   
-  .min-h-[calc(100vh-64px)] {
+  .custom-min-height {
     height: calc(100vh - 64px);
   }
 }
@@ -65,7 +65,7 @@ html {
   .min-h-screen {
     min-height: -webkit-fill-available;
   }
-  .min-h-[calc(100vh-64px)] {
+  .custom-min-height {
     min-height: calc(-webkit-fill-available - 64px);
   }
 }
