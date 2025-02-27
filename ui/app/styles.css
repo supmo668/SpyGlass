@@ -13,10 +13,8 @@
 
 .SearchInput {
   width: 100%;
-  max-width: 100%;
-  margin: 0;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
+  max-width: 48rem;
+  margin: 0 auto;
 }
 
 /* Loading dots animation */
@@ -32,17 +30,61 @@
   80%, 100% { content: '...'; }
 }
 
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+  body {
+    overflow-y: auto !important;
+    height: auto !important;
+  }
+  
+  .min-h-[calc(100vh-64px)] {
+    height: auto;
+    min-height: 100%;
+  }
+}
+
+/* Desktop-specific styles */
+@media (min-width: 769px) {
+  body {
+    overflow: hidden;
+    height: 100vh;
+  }
+  
+  .min-h-[calc(100vh-64px)] {
+    height: calc(100vh - 64px);
+  }
+}
+
+/* Common styles */
+html {
+  height: 100%;
+}
+
+/* iOS viewport height fix */
+@supports (-webkit-touch-callout: none) {
+  .min-h-screen {
+    min-height: -webkit-fill-available;
+  }
+  .min-h-[calc(100vh-64px)] {
+    min-height: calc(-webkit-fill-available - 64px);
+  }
+}
+
+/* Add padding to main content to prevent overlap with fixed search input */
+.main-content {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+}
+
+/* Responsive card grid */
+@media (max-width: 640px) {
+  .opportunities-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Ensure content doesn't overlap with search input */
 .flex-1 {
   min-height: 0;
-}
-
-.min-h-screen {
-  padding-bottom: 80px;
-}
-
-body {
-  overflow: hidden;
 }
 
 .h-screen {

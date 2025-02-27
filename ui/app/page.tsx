@@ -450,7 +450,7 @@ export default function Home() {
         </div>
       ) : error ? (
         <div className="flex flex-col items-center min-h-[calc(100vh-64px)] px-4 pt-6 pb-2 bg-gradient-to-b from-gray-50 to-gray-200">
-          <div className="w-full max-w-4xl flex-1 flex flex-col justify-between pb-2">
+          <div className="w-full max-w-4xl flex-1 flex flex-col justify-between pb-0">
             <div className="text-center text-red-600 p-4 rounded-lg">
               <h3 className="text-lg font-semibold mb-2">Error Loading Data</h3>
               <p>{error}</p>
@@ -655,16 +655,22 @@ export default function Home() {
               </Card>
             </div>
           </div>
-          <SearchInput
-            onSearch={(query) => {
-              setSearchQuery(query);
-              setHasSearched(true);
-              fetchTrends(query);
-            }}
-            placeholder="Search trends..."
-            className="SearchInput !mb-2"
-            value={searchQuery}
-          />
+          <div className="fixed bottom-0 left-0 right-0 p-2 sm:p-4 border-t shadow-lg z-50">
+            <div className="max-w-[1920px] mx-auto flex justify-center">
+              <div className="w-full max-w-4xl px-2 sm:px-0">
+                <SearchInput
+                  onSearch={(query) => {
+                    setSearchQuery(query);
+                    setHasSearched(true);
+                    fetchTrends(query);
+                  }}
+                  placeholder="Search trends..."
+                  className="SearchInput !mb-1"
+                  value={searchQuery}
+                />
+              </div>
+            </div>
+          </div>
         </motion.main>
       )}
     </div>
