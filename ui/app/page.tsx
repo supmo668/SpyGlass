@@ -372,6 +372,23 @@ export default function Home() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [ycCompanyData, setYcCompanyData] = useState<YCCompanyInfo[]>([]);
 
+  // Reference for the details section
+  const detailsRef = useRef<HTMLDivElement>(null);
+
+  // Auto-show details when a trend is selected and scroll to it on mobile
+  useEffect(() => {
+    if (selectedTrend) {
+      setIsDetailsOpen(true);
+      
+      // On mobile, scroll to the details section
+      if (window.innerWidth < 768 && detailsRef.current) {
+        setTimeout(() => {
+          detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
+    }
+  }, [selectedTrend]);
+
   // Add this useEffect for the viewport height fix
   useEffect(() => {
     const setAppHeight = () => {
@@ -800,7 +817,7 @@ export default function Home() {
                     {filteredData.map((trend, idx) => (
                       <motion.div key={trend.Trend} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}>
                         <Card
-                          className={`cursor-pointer transition-all hover:shadow-lg bg-white shadow-md border border-gray-200 rounded-lg card-hover-effect ${selectedTrend?.Trend === trend.Trend ? "ring-2 ring-indigo-500 bg-indigo-50" : ""}`}
+                          className={`cursor-pointer transition-all hover:shadow-lg bg-white shadow-md border border-gray-200 rounded-lg card-hover-effect ${selectedTrend?.Trend === trend.Trend ? "ring-2 ring-indigo-500 bg-indigo-50 selected-trend" : ""}`}
                           onClick={() => setSelectedTrend(trend)}
                           onMouseEnter={() => setSelectedTrend(trend)}
                         >
@@ -829,8 +846,8 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="w-full md:w-80 shrink-0 md:sticky md:top-0"> 
-              <Card className="md:h-[calc(100vh-64px)] bg-white shadow-gray-200 overflow-y-auto trend-details-section"> 
+            <div className="w-full md:w-80 shrink-0"> 
+              <Card className="bg-white shadow-gray-200 overflow-y-auto mb-6">
                 <CardHeader className="flex justify-between items-center sticky top-0 bg-white z-10"> 
                   <CardTitle className="text-gray-900">Trend Details</CardTitle>
                   <Button variant="ghost" className="md:hidden" onClick={() => setIsDetailsOpen(!isDetailsOpen)}>

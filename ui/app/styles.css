@@ -237,6 +237,26 @@
   .fixed-search-bar {
     padding-bottom: env(safe-area-inset-bottom, 12px);
   }
+  
+  /* Improved Trend Details on mobile */
+  .trend-details-section {
+    margin-top: 1rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    max-height: none !important;
+  }
+  
+  /* Add a visual indicator for expandable content */
+  .trend-details-section .card-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(to right, #6366f1, #ec4899);
+    border-radius: 4px 4px 0 0;
+  }
 }
 
 /* Better focus outlines for accessibility */
@@ -311,4 +331,36 @@
 .h-screen {
   height: 100vh;
   height: 100dvh;
+}
+
+/* Selected trend indicator */
+.selected-trend {
+  position: relative;
+}
+
+.selected-trend::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background: linear-gradient(to bottom, #6366f1, #ec4899);
+  border-top-left-radius: 0.375rem;
+  border-bottom-left-radius: 0.375rem;
+}
+
+@media (max-width: 640px) {
+  .selected-trend::after {
+    content: '↓ Details below';
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    font-size: 0.75rem;
+    color: #6366f1;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 2px 6px;
+    border-radius: 4px;
+    pointer-events: none;
+  }
 }
