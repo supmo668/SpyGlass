@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   LineChart,
   Line,
@@ -11,7 +11,7 @@ import {
   CartesianGrid,
   Label,
 } from "recharts";
-import { Search, Sparkles, TrendingUp, Zap, Loader2 } from "lucide-react";
+import { Search, Sparkles, TrendingUp, Zap, Loader2, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,8 +24,124 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import SearchInput from "@/components/SearchInput"; // Adjust path as needed
-import "./styles.css"; // Adjust path if needed
+import "./styles.css"; // Make sure to add the CSS from the second artifact to this file
+
+// Enhanced SearchInput component
+const SearchInput = ({
+  onSearch,
+  placeholder = "Search...",
+  className = "",
+  value = "",
+}) => {
+  const [inputValue, setInputValue] = useState(value);
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef(null);
+
+  // Update local state when prop value changes
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+
+  // Debounce function to prevent excessive API calls
+  const debounce = (fn, ms = 300) => {
+    let timeoutId;
+    return function (...args) {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => fn.apply(this, args), ms);
+    };
+  };
+
+  // Handle input changes with debouncing
+  const handleInputChange = (e) => {
+    setInputValue(e.target.value);
+  };
+
+  // Handle form submission
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (inputValue.trim()) {
+      onSearch(inputValue.trim());
+    }
+  };
+
+  // Clear the input field
+  const handleClear = () => {
+    setInputValue("");
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  // Add keyboard shortcut for focusing search (Cmd+K or Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className={`relative group ${className}`}
+      role="search"
+    >
+      <div
+        className={`flex items-center overflow-hidden bg-white border ${
+          isFocused
+            ? "border-indigo-500 ring-2 ring-indigo-100"
+            : "border-gray-300"
+        } rounded-lg transition-all duration-200`}
+      >
+        <button
+          type="submit"
+          className="flex items-center justify-center h-10 px-3 text-gray-500"
+          aria-label="Search"
+        >
+          <Search className="w-5 h-5" />
+        </button>
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          placeholder={placeholder}
+          className="flex-1 h-10 px-1 py-2 text-gray-900 bg-transparent border-none focus:outline-none"
+          aria-label={placeholder}
+        />
+        {inputValue && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="flex items-center justify-center h-10 px-3 text-gray-500 hover:text-gray-700"
+            aria-label="Clear search"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+      {isFocused && (
+        <div className="absolute right-3 top-3 hidden sm:block">
+          <kbd className="px-2 py-1 text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-200 rounded">
+            ⌘K
+          </kbd>
+        </div>
+      )}
+      <div className="text-xs text-gray-500 mt-1 ml-2 hidden sm:block">
+        {inputValue ? "Press Enter to search" : "Try searching for AI, Healthcare, Blockchain..."}
+      </div>
+    </form>
+  );
+};
 
 interface ProcessedRow {
   Trend: string;
@@ -99,6 +215,11 @@ const TrendChart = ({ trendsData }: TrendChartProps) => {
     });
     return dataPoint;
   }) || [];
+  
+  // Add keyboard accessibility for screen readers
+  const chartDescription = trendsData.map(trend => 
+    `${trend.name} grows from ${trend.data[0]?.growth || 0}% in 2025 to ${trend.data[trend.data.length - 1]?.growth || 0}% in 2030.`
+  ).join(' ');
 
   return (
     <motion.div
@@ -106,6 +227,7 @@ const TrendChart = ({ trendsData }: TrendChartProps) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 1 }}
       className="h-[400px]"
+      aria-label={`Growth trends chart: ${chartDescription}`}
     >
       <ResponsiveContainer>
         <LineChart
@@ -133,6 +255,7 @@ const TrendChart = ({ trendsData }: TrendChartProps) => {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 6 }}
+              className="chart-line-enhance"
             />
           ))}
         </LineChart>
@@ -214,19 +337,55 @@ const CompanyLogo = ({ src, name }: { src: string; name: string }) => {
 };
 
 export default function Home() {
-  const [initialTrendsData, setInitialTrendsData] = useState<any[]>(starterTrends);
-  const [trendsData, setTrendsData] = useState<ProcessedRow[]>([]);
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedTrend, setSelectedTrend] = useState<ProcessedRow | null>(null);
-  const [filteredData, setFilteredData] = useState<ProcessedRow[]>([]);
+  const [initialTrendsData, setInitialTrendsData] = useState(starterTrends);
+  const [trendsData, setTrendsData] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTrend, setSelectedTrend] = useState(null);
+  const [filteredData, setFilteredData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
-  const [currentStep, setCurrentStep] = useState<string>("");
-  const [stepQueue, setStepQueue] = useState<string[]>([]);
+  const [currentStep, setCurrentStep] = useState("");
+  const [stepQueue, setStepQueue] = useState([]);
   const [isStepLoading, setIsStepLoading] = useState(false);
   const [isLegendOpen, setIsLegendOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [ycCompanyData, setYcCompanyData] = useState([]);
+
+  // Add this useEffect for the viewport height fix
+  useEffect(() => {
+    const setAppHeight = () => {
+      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+    };
+    
+    // Set initial height
+    setAppHeight();
+    
+    // Update on window resize and orientation change
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+    
+    // Update on iOS scroll (address bar appears/disappears)
+    const handleIOSScroll = () => {
+      if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+        if (!window.scrollTimeout) {
+          window.scrollTimeout = setTimeout(() => {
+            setAppHeight();
+            window.scrollTimeout = null;
+          }, 300);
+        }
+      }
+    };
+    
+    window.addEventListener('scroll', handleIOSScroll);
+    
+    // Cleanup event listeners on component unmount
+    return () => {
+      window.removeEventListener('resize', setAppHeight);
+      window.removeEventListener('orientationchange', setAppHeight);
+      window.removeEventListener('scroll', handleIOSScroll);
+    };
+  }, []);
 
   const processStepQueue = async () => {
     if (stepQueue.length > 0 && !isStepLoading) {
@@ -242,7 +401,40 @@ export default function Home() {
     processStepQueue();
   }, [stepQueue]);
 
-  const fetchTrends = async (query: string) => {
+  const fetchYCCompanies = async (trendName) => {
+    setStepQueue(prev => [...prev, `Fetching YC companies for "${trendName}"...`]);
+    
+    // This would connect to a real API in production
+    // For now simulate a fetch with timeout and return placeholder data
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Return some dynamic data based on the trend name
+    // In a real implementation, this would call an actual API
+    return [
+      { 
+        name: `${trendName.split(' ')[0]}AI`, 
+        logo: "/company-logos/placeholder.png" 
+      },
+      { 
+        name: `${trendName.slice(0, 4)} Solutions`, 
+        logo: "/company-logos/placeholder2.png" 
+      }
+    ];
+  };
+
+  useEffect(() => {
+    if (selectedTrend) {
+      fetchYCCompanies(selectedTrend.Trend)
+        .then(companies => {
+          setYcCompanyData(companies);
+        })
+        .catch(err => {
+          console.error("Error fetching YC companies:", err);
+        });
+    }
+  }, [selectedTrend]);
+
+  const fetchTrends = async (query) => {
     setIsLoading(true);
     setError(null);
     setStepQueue(prev => [...prev, `Starting exploration for "${query}"…`]);
@@ -295,7 +487,7 @@ export default function Home() {
       }
 
       setStepQueue(prev => [...prev, `Processing ${data.data.final_result.trends.length} trends…`]);
-      const processedTrends = data.data.final_result.trends.map((trend: any) => {
+      const processedTrends = data.data.final_result.trends.map((trend) => {
         const mappedTrend = {
           Trend: trend.name || "Unknown Trend",
           "Startup Opportunity": trend.Startup_Opportunity || trend.description || "Unknown Opportunity",
@@ -311,12 +503,12 @@ export default function Home() {
         };
         setStepQueue(prev => [...prev, `Mapping trend: "${mappedTrend.Trend}"…`]);
         console.log("Mapped trend:", mappedTrend);
-        return mappedTrend as ProcessedRow;
+        return mappedTrend;
       });
       console.log("Processed trends array:", processedTrends);
 
       setStepQueue(prev => [...prev, "Updating trends data…"]);
-      const sortedTrends = processedTrends.sort((a: ProcessedRow, b: ProcessedRow) => b["Growth Rate, WoW"] - a["Growth Rate, WoW"]);
+      const sortedTrends = processedTrends.sort((a, b) => b["Growth Rate, WoW"] - a["Growth Rate, WoW"]);
       setTrendsData(sortedTrends);
       setFilteredData(sortedTrends);
       console.log("Updated trendsData (sorted):", sortedTrends);
@@ -333,7 +525,7 @@ export default function Home() {
 
       setStepQueue(prev => [...prev, "Preparing results…"]);
       await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (err: unknown) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch trends from API";
       setError(errorMessage);
       console.error("Error during fetchTrends:", errorMessage);
@@ -346,12 +538,12 @@ export default function Home() {
   };
 
   const pivotedData = years.map((year) => {
-    const obj: { year: string; [key: string]: number | string } = { year };
-    filteredData.forEach((row) => { obj[row.Trend] = row[year as keyof ProcessedRow]; });
+    const obj = { year };
+    filteredData.forEach((row) => { obj[row.Trend] = row[year]; });
     return obj;
   });
 
-  const handleMouseMove = (state: any) => {
+  const handleMouseMove = (state) => {
     if (state?.activePayload?.[0]) {
       const trendName = state.activePayload[0].dataKey;
       const selected = filteredData.find((row) => row.Trend === trendName);
@@ -360,7 +552,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 mobile-full-height">
       <header className="h-auto bg-white shadow-sm border-b sticky top-0 z-50 py-2">
         <div className="max-w-[1920px] mx-auto px-4">
           <div className="flex items-center justify-start h-16">
@@ -376,13 +568,13 @@ export default function Home() {
         <div className="flex flex-col items-center custom-min-height px-4 py-6 bg-gradient-to-b from-gray-50 to-gray-200">
           <div className="w-full max-w-4xl flex-1 flex flex-col justify-between pb-0">  
             <div>
-              <div className="relative h-[300px] sm:h-[400px]" aria-label="Interactive trend chart">
+              <div className="relative h-[250px] sm:h-[400px]" aria-label="Interactive trend chart">
                 <TrendChart trendsData={initialTrendsData} />
                 <div className="absolute top-4 left-4 text-white bg-gray-800 bg-opacity-50 px-2 py-1 rounded-2xl">
                   <p className="text-sm">Trending Growth Rates (Hover for Details)</p>
                 </div>
               </div>
-              <div className="text-center space-y-8">
+              <div className="text-center space-y-6 mt-4 sm:mt-2 sm:space-y-8">
                 <h2 className="text-3xl font-semibold text-gray-900">Discover Trending Opportunities</h2>
                 <p className="text-lg text-gray-700">Explore key trends or search your own!</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
@@ -390,7 +582,7 @@ export default function Home() {
                     <Button
                       key={query}
                       variant="outline"
-                      className="h-auto py-3 text-base text-gray-700 hover:bg-gray-100"
+                      className="h-auto py-3 text-base text-gray-700 hover:bg-gray-100 card-hover-effect"
                       onClick={() => {
                         setSearchQuery(query);
                         setHasSearched(true);
@@ -442,24 +634,20 @@ export default function Home() {
                   </motion.p>
                 ))}
               </div>
-              <progress
-                value={(stepQueue.length - (isStepLoading ? 1 : 0)) * 20}
-                max="100"
-                className="w-full h-2 bg-gray-200 rounded-full overflow-hidden"
-              >
-                {Math.min((stepQueue.length - (isStepLoading ? 1 : 0)) * 20, 100)}%
-              </progress>
-              <div className="flex items-center justify-center gap-2">
+              
+              <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2.5 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${Math.min((stepQueue.length - (isStepLoading ? 1 : 0)) * 20, 100)}%` }}
+                ></div>
+              </div>
+              <div className="flex items-center justify-between mt-2">
                 <span className="text-sm text-gray-500">
                   Progress: {Math.min((stepQueue.length - (isStepLoading ? 1 : 0)) * 20, 100)}%
                 </span>
-                {isLoading && (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                    className="w-4 h-4 border-4 border-t-[transparent] border-[conic-gradient(from 90deg, #6366f1, #ec4899, #06b6d4, #f59e0b, #10b981, #8b5cf6)] rounded-full"
-                  />
-                )}
+                <span className="text-sm text-gray-500">
+                  Estimated time: ~{5 - Math.floor((stepQueue.length - (isStepLoading ? 1 : 0)) * 20 / 25)} seconds remaining
+                </span>
               </div>
             </motion.div>
           </div>
@@ -503,7 +691,7 @@ export default function Home() {
         </div>
       ) : (
         <motion.main
-          className="px-2 py-4 custom-min-height overflow-y-auto" 
+          className="px-2 py-4 pb-20 custom-min-height overflow-y-auto mobile-main-content" 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
@@ -520,7 +708,11 @@ export default function Home() {
                 <CardContent className={`${isLegendOpen ? "block" : "hidden"} md:block space-y-3`}>
                   {filteredData.length > 0 ? (
                     filteredData.map((trend, idx) => (
-                      <div key={trend.Trend} className="flex items-start space-x-2.5 px-2 py-1.5 rounded-md hover:bg-gray-50">
+                      <div 
+                        key={trend.Trend} 
+                        className={`flex items-start space-x-2.5 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer ${selectedTrend?.Trend === trend.Trend ? 'bg-indigo-50' : ''}`}
+                        onClick={() => setSelectedTrend(trend)}
+                      >
                         <div className="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: colors[idx % colors.length] }} />
                         <span className="text-sm text-gray-700 break-words overflow-wrap-anywhere leading-tight">{trend.Trend}</span>
                       </div>
@@ -570,6 +762,7 @@ export default function Home() {
                               dot={false}
                               activeDot={{ r: 6, fill: colors[idx % colors.length], stroke: "white", strokeWidth: 2 }}
                               opacity={selectedTrend ? (selectedTrend.Trend === trend.Trend ? 1 : 0.2) : 1}
+                              className="chart-line-enhance"
                             />
                           ))}
                         </LineChart>
@@ -581,21 +774,25 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              <div className="overflow-y-auto md:h-[calc(100vh-64px-16px-400px)]"> 
+              <div className="overflow-y-auto mobile-card-grid flex-1"> 
                 {filteredData.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-16">
                     {filteredData.map((trend, idx) => (
                       <motion.div key={trend.Trend} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}>
                         <Card
-                          className={`cursor-pointer transition-all hover:shadow-lg bg-white shadow-md border border-gray-200 rounded-lg ${selectedTrend?.Trend === trend.Trend ? "ring-2 ring-gray-500" : ""}`}
+                          className={`cursor-pointer transition-all hover:shadow-lg bg-white shadow-md border border-gray-200 rounded-lg card-hover-effect ${selectedTrend?.Trend === trend.Trend ? "ring-2 ring-indigo-500 bg-indigo-50" : ""}`}
                           onClick={() => setSelectedTrend(trend)}
                           onMouseEnter={() => setSelectedTrend(trend)}
                         >
-                          <CardContent className="p-4">
+                          <CardContent className="p-5">
                             <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-gray-900">{trend["Startup Opportunity"]}</h3>
-                                <p className="text-sm text-gray-500 mt-1">{trend.Trend}</p>
+                              <div className="flex-1 overflow-hidden">
+                                <h3 className="font-semibold text-gray-900 truncate" title={trend["Startup Opportunity"]}>
+                                  {trend["Startup Opportunity"]}
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-1 truncate" title={trend.Trend}>
+                                  {trend.Trend}
+                                </p>
                               </div>
                               <Badge className="bg-gray-200 text-gray-700 flex items-center space-x-1 ml-2 shrink-0">
                                 <TrendingUp className="h-3 w-3" /><span>{trend["Growth Rate, WoW"]} % WoW</span>
@@ -613,7 +810,7 @@ export default function Home() {
             </div>
 
             <div className="w-full md:w-80 shrink-0 md:sticky md:top-0"> 
-              <Card className="md:h-[calc(100vh-64px)] bg-white shadow-gray-200 overflow-y-auto"> 
+              <Card className="md:h-[calc(100vh-64px)] bg-white shadow-gray-200 overflow-y-auto trend-details-section"> 
                 <CardHeader className="flex justify-between items-center sticky top-0 bg-white z-10"> 
                   <CardTitle className="text-gray-900">Trend Details</CardTitle>
                   <Button variant="ghost" className="md:hidden" onClick={() => setIsDetailsOpen(!isDetailsOpen)}>
@@ -661,17 +858,29 @@ export default function Home() {
                       </div>
                       <div>
                         <h3 className="font-medium text-gray-900 mb-2">YC-Funded Companies</h3>
-                        <div className="flex flex-col space-y-2">
-                          {selectedTrend && ycCompanies[selectedTrend.Trend as YCTrends]?.map((company) => (
-                            <div key={company.name} className="flex items-center p-2 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
-                              <CompanyLogo src={company.logo} name={company.name} />
-                              <span className="ml-3 text-sm font-medium text-gray-900">{company.name}</span>
+                        {ycCompanyData.length > 0 ? (
+                          <div className="flex flex-col space-y-2">
+                            {ycCompanyData.map((company) => (
+                              <div key={company.name} className="flex items-center p-2 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+                                <CompanyLogo src={company.logo} name={company.name} />
+                                <span className="ml-3 text-sm font-medium text-gray-900">{company.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          selectedTrend && ycCompanies[selectedTrend.Trend] ? (
+                            <div className="flex flex-col space-y-2">
+                              {ycCompanies[selectedTrend.Trend].map((company) => (
+                                <div key={company.name} className="flex items-center p-2 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+                                  <CompanyLogo src={company.logo} name={company.name} />
+                                  <span className="ml-3 text-sm font-medium text-gray-900">{company.name}</span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                          {selectedTrend && !ycCompanies[selectedTrend.Trend as YCTrends] && (
-                            <div className="text-sm text-gray-500">No YC companies found for this trend</div>
-                          )}
-                        </div>
+                          ) : (
+                            <div className="text-sm text-gray-500">Loading companies...</div>
+                          )
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -681,7 +890,7 @@ export default function Home() {
               </Card>
             </div>
           </div>
-          <div className="fixed bottom-0 left-0 right-0 p-2 sm:p-4 border-t shadow-lg z-50">
+          <div className="fixed bottom-0 left-0 right-0 bg-white bg-opacity-95 backdrop-blur-sm p-3 sm:p-4 border-t shadow-lg z-50 fixed-search-bar">
             <div className="max-w-[1920px] mx-auto flex justify-center">
               <div className="w-full max-w-4xl px-2 sm:px-0">
                 <SearchInput
@@ -691,9 +900,10 @@ export default function Home() {
                     fetchTrends(query);
                   }}
                   placeholder="Search trends..."
-                  className="SearchInput !mb-1"
+                  className="SearchInput !mb-0"
                   value={searchQuery}
                 />
+                <div className="mt-1 text-xs text-center text-gray-500">Enter a trend or technology topic to explore growth metrics</div>
               </div>
             </div>
           </div>

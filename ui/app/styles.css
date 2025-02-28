@@ -1,20 +1,19 @@
+/* SpyGlass Trends - Complete styles.css */
+
+/* ===== ANIMATIONS ===== */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
 @keyframes pulse {
   0% { opacity: 0.5; }
   50% { opacity: 1; }
   100% { opacity: 0.5; }
 }
+
 .animate-fade-in {
   animation: fadeIn 0.5s ease-in;
-}
-
-.SearchInput {
-  width: 100%;
-  max-width: 48rem;
-  margin: 0 auto;
 }
 
 /* Loading dots animation */
@@ -30,16 +29,43 @@
   80%, 100% { content: '...'; }
 }
 
+/* ===== VIEWPORT HEIGHT FIXES ===== */
+:root {
+  --app-height: 100vh;
+}
+
+.mobile-full-height {
+  min-height: 100vh;
+  min-height: var(--app-height);
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-card-grid {
+  min-height: 50vh;
+  min-height: calc(var(--app-height) / 2);
+  flex: 1;
+}
+
 /* Mobile-specific styles */
 @media (max-width: 768px) {
   body {
     overflow-y: auto !important;
     height: auto !important;
+    position: relative;
   }
   
   .custom-min-height {
-    height: auto;
-    min-height: 100%;
+    height: auto !important;
+    min-height: calc(var(--app-height) - 64px) !important;
+    flex: 1;
+    padding-bottom: 80px; /* Space for fixed bottom search bar */
   }
 }
 
@@ -55,11 +81,6 @@
   }
 }
 
-/* Common styles */
-html {
-  height: 100%;
-}
-
 /* iOS viewport height fix */
 @supports (-webkit-touch-callout: none) {
   .min-h-screen {
@@ -70,19 +91,219 @@ html {
   }
 }
 
-/* Add padding to main content to prevent overlap with fixed search input */
-.main-content {
-  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+/* Modern viewport units support */
+@supports (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100dvh;
+  }
+  .custom-min-height {
+    min-height: calc(100dvh - 64px);
+  }
 }
 
-/* Responsive card grid */
+/* ===== COMPONENT STYLES ===== */
+
+/* SearchInput styles */
+.SearchInput {
+  width: 100%;
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
+.SearchInput input:focus {
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+  border-color: #6366f1;
+}
+
+/* Fixed bottom search bar */
+.fixed-search-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding-bottom: max(env(safe-area-inset-bottom, 12px), 12px);
+  z-index: 50;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.3s ease;
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
+.fixed-search-bar.hidden {
+  transform: translateY(100%);
+}
+
+/* Better truncation for long text */
+.overflow-wrap-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Enhanced card styles */
+.card-hover-effect {
+  transition: all 0.2s ease-in-out;
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-2px);
+}
+
+/* Improved chart tooltips */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  padding: 8px 12px !important;
+}
+
+/* Trend details mobile view */
+@media (max-width: 768px) {
+  .trend-details-section {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    z-index: 40;
+    border-top: 1px solid #e5e7eb;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    transition: transform 0.3s ease;
+    transform: translateY(90%);
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  
+  .trend-details-section.open {
+    transform: translateY(0);
+  }
+  
+  .pull-indicator {
+    width: 36px;
+    height: 4px;
+    background-color: #d1d5db;
+    border-radius: 2px;
+    margin: 8px auto;
+  }
+}
+
+/* Selected card highlighting */
+.selected-card {
+  box-shadow: 0 0 0 2px #6366f1, 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+/* Chart line enhancement */
+.chart-line-enhance {
+  filter: drop-shadow(0px 0px 2px rgba(0, 0, 0, 0.2));
+}
+
+/* Chart container height fix for mobile */
+@media (max-width: 768px) {
+  [class*="h-[250px]"], 
+  [class*="h-[300px]"], 
+  [class*="h-[400px]"] {
+    height: 250px !important;
+  }
+}
+
+/* Animation for chart rendering */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+/* Improve mobile padding for content */
 @media (max-width: 640px) {
   .opportunities-grid {
     grid-template-columns: 1fr;
   }
+  
+  .main-content {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+  
+  .fixed-search-bar {
+    padding-bottom: env(safe-area-inset-bottom, 12px);
+  }
 }
 
-/* Ensure content doesn't overlap with search input */
+/* Better focus outlines for accessibility */
+:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* Enhanced list item styling */
+.trend-list-item {
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+.trend-list-item:hover {
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+.trend-list-item.active {
+  background-color: rgba(99, 102, 241, 0.1);
+  font-weight: 500;
+}
+
+/* Badge styling */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.badge-primary {
+  background-color: #eef2ff;
+  color: #4f46e5;
+}
+
+.badge-primary:hover {
+  background-color: #e0e7ff;
+}
+
+/* Improved scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Ensure content expands properly */
 .flex-1 {
   min-height: 0;
 }
@@ -90,15 +311,4 @@ html {
 .h-screen {
   height: 100vh;
   height: 100dvh;
-}
-
-/* Add this to styles.css to test */
-.search-input-container { /* Adjust class name based on SearchInput's actual wrapper */
-  margin-bottom: 8px !important;
-  padding-bottom: 0 !important;
-}
-
-/* Or if SearchInput itself has a specific class */
-.search-input {
-  margin-bottom: 8px !important;
 }
