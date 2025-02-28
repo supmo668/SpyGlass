@@ -27,15 +27,22 @@ import {
 import "./styles.css"; // Make sure to add the CSS from the second artifact to this file
 
 // Enhanced SearchInput component
+interface SearchInputProps {
+  onSearch: (query: string) => void;
+  placeholder?: string;
+  className?: string;
+  value?: string;
+}
+
 const SearchInput = ({
   onSearch,
   placeholder = "Search...",
   className = "",
   value = "",
-}) => {
+}: SearchInputProps) => {
   const [inputValue, setInputValue] = useState(value);
   const [isFocused, setIsFocused] = useState(false);
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Update local state when prop value changes
   useEffect(() => {
@@ -43,21 +50,21 @@ const SearchInput = ({
   }, [value]);
 
   // Debounce function to prevent excessive API calls
-  const debounce = (fn, ms = 300) => {
-    let timeoutId;
-    return function (...args) {
+  const debounce = <T extends (...args: any[]) => void>(fn: T, ms = 300) => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    return function (this: any, ...args: Parameters<T>) {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => fn.apply(this, args), ms);
     };
   };
 
   // Handle input changes with debouncing
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (inputValue.trim()) {
       onSearch(inputValue.trim());
@@ -74,7 +81,7 @@ const SearchInput = ({
 
   // Add keyboard shortcut for focusing search (Cmd+K or Ctrl+K)
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         if (inputRef.current) {
@@ -155,7 +162,7 @@ interface ProcessedRow {
   "2028": number;
   "2029": number;
   "2030": number;
-  [key: string]: string | number;
+  [key: string]: string | number; // Add index signature for dynamic access
 }
 
 const years = ["2025", "2026", "2027", "2028", "2029", "2030"];
@@ -280,8 +287,14 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   return null;
 };
 
-type YCCompanyInfo = { name: string; logo: string };
-type YCTrends = "Privacy-Preserving AI" | "Explainable AI" | "Personalized Finance" | "AI-Powered Decision Support" | "Real-Time Forecasting" | "AI Ethics" | "Hyperautomation" | "Data Democratization" | "AI Regulation" | "Fintech";
+interface YCCompanyInfo {
+  name: string;
+  logo: string;
+}
+
+// Define YCTrends as a string type for the keys in the ycCompanies record
+type YCTrends = string;
+
 const ycCompanies: Record<YCTrends, readonly YCCompanyInfo[]> = {
   "Privacy-Preserving AI": [
     { name: "Neuralink", logo: "/company-logos/neuralink.png" },
@@ -336,21 +349,28 @@ const CompanyLogo = ({ src, name }: { src: string; name: string }) => {
   );
 };
 
+// Extend Window interface to include scrollTimeout property
+declare global {
+  interface Window {
+    scrollTimeout: ReturnType<typeof setTimeout> | null;
+  }
+}
+
 export default function Home() {
   const [initialTrendsData, setInitialTrendsData] = useState(starterTrends);
-  const [trendsData, setTrendsData] = useState([]);
+  const [trendsData, setTrendsData] = useState<ProcessedRow[]>([]);
+  const [filteredData, setFilteredData] = useState<ProcessedRow[]>([]);
+  const [selectedTrend, setSelectedTrend] = useState<ProcessedRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTrend, setSelectedTrend] = useState(null);
-  const [filteredData, setFilteredData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
-  const [currentStep, setCurrentStep] = useState("");
-  const [stepQueue, setStepQueue] = useState([]);
+  const [stepQueue, setStepQueue] = useState<string[]>([]);
+  const [currentStep, setCurrentStep] = useState<string | null>(null);
   const [isStepLoading, setIsStepLoading] = useState(false);
   const [isLegendOpen, setIsLegendOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [ycCompanyData, setYcCompanyData] = useState([]);
+  const [ycCompanyData, setYcCompanyData] = useState<YCCompanyInfo[]>([]);
 
   // Add this useEffect for the viewport height fix
   useEffect(() => {
@@ -401,8 +421,8 @@ export default function Home() {
     processStepQueue();
   }, [stepQueue]);
 
-  const fetchYCCompanies = async (trendName) => {
-    setStepQueue(prev => [...prev, `Fetching YC companies for "${trendName}"...`]);
+  const fetchYCCompanies = async (trendName: string): Promise<YCCompanyInfo[]> => {
+    setStepQueue((prev: string[]) => [...prev, `Fetching YC companies for "${trendName}"...`]);
     
     // This would connect to a real API in production
     // For now simulate a fetch with timeout and return placeholder data
@@ -434,13 +454,13 @@ export default function Home() {
     }
   }, [selectedTrend]);
 
-  const fetchTrends = async (query) => {
+  const fetchTrends = async (query: string) => {
     setIsLoading(true);
     setError(null);
-    setStepQueue(prev => [...prev, `Starting exploration for "${query}"…`]);
+    setStepQueue((prev: string[]) => [...prev, `Starting exploration for "${query}"…`]);
     console.log("Starting fetchTrends for query:", query);
 
-    setStepQueue(prev => [...prev, "Building request payload…"]);
+    setStepQueue((prev: string[]) => [...prev, "Building request payload…"]);
     const requestBody = JSON.stringify({
       user_input: query,
       focus_area: "business_opportunities",
@@ -454,7 +474,7 @@ export default function Home() {
       "Origin": window.location.origin,
     };
 
-    setStepQueue(prev => [...prev, "Sending API request…"]);
+    setStepQueue((prev: string[]) => [...prev, "Sending API request…"]);
     console.log("Sending API request to:", "https://simple-lobster-morally.ngrok-free.app/analyze");
     try {
       const response = await fetch("https://simple-lobster-morally.ngrok-free.app/analyze", {
@@ -466,18 +486,18 @@ export default function Home() {
 
       console.log("API response status:", response.status);
       if (!response.ok) {
-        setStepQueue(prev => [...prev, `API error: ${response.status} - ${response.statusText}`]);
+        setStepQueue((prev: string[]) => [...prev, `API error: ${response.status} - ${response.statusText}`]);
         throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
       }
 
-      setStepQueue(prev => [...prev, "Parsing API response…"]);
+      setStepQueue((prev: string[]) => [...prev, "Parsing API response…"]);
       const data = await response.json();
       console.log("Raw API response:", data);
 
-      setStepQueue(prev => [...prev, "Validating data format…"]);
+      setStepQueue((prev: string[]) => [...prev, "Validating data format…"]);
       // Updated to match new API response structure: { "status": "success", "data": { "final_result": { "trends": [...] } } }
       if (!data.data || !data.data.final_result || !Array.isArray(data.data.final_result.trends)) {
-        setStepQueue(prev => [...prev, "Invalid data format detected"]);
+        setStepQueue((prev: string[]) => [...prev, "Invalid data format detected"]);
         console.error("Invalid API response format:", data);
         setError("No trends found for this query or API returned invalid data");
         setTrendsData([]);
@@ -486,8 +506,8 @@ export default function Home() {
         return;
       }
 
-      setStepQueue(prev => [...prev, `Processing ${data.data.final_result.trends.length} trends…`]);
-      const processedTrends = data.data.final_result.trends.map((trend) => {
+      setStepQueue((prev: string[]) => [...prev, `Processing ${data.data.final_result.trends.length} trends…`]);
+      const processedTrends = data.data.final_result.trends.map((trend: any) => {
         const mappedTrend = {
           Trend: trend.name || "Unknown Trend",
           "Startup Opportunity": trend.Startup_Opportunity || trend.description || "Unknown Opportunity",
@@ -501,29 +521,29 @@ export default function Home() {
           "2029": trend.Year_2029 || 0,
           "2030": trend.Year_2030 || 0,
         };
-        setStepQueue(prev => [...prev, `Mapping trend: "${mappedTrend.Trend}"…`]);
+        setStepQueue((prev: string[]) => [...prev, `Mapping trend: "${mappedTrend.Trend}"…`]);
         console.log("Mapped trend:", mappedTrend);
         return mappedTrend;
       });
       console.log("Processed trends array:", processedTrends);
 
-      setStepQueue(prev => [...prev, "Updating trends data…"]);
-      const sortedTrends = processedTrends.sort((a, b) => b["Growth Rate, WoW"] - a["Growth Rate, WoW"]);
+      setStepQueue((prev: string[]) => [...prev, "Updating trends data…"]);
+      const sortedTrends = processedTrends.sort((a: ProcessedRow, b: ProcessedRow) => b["Growth Rate, WoW"] - a["Growth Rate, WoW"]);
       setTrendsData(sortedTrends);
       setFilteredData(sortedTrends);
       console.log("Updated trendsData (sorted):", sortedTrends);
       console.log("Updated filteredData (sorted):", sortedTrends);
 
       if (sortedTrends.length > 0) {
-        setStepQueue(prev => [...prev, `Selecting first trend: "${sortedTrends[0].Trend}"…`]);
+        setStepQueue((prev: string[]) => [...prev, `Selecting first trend: "${sortedTrends[0].Trend}"…`]);
         setSelectedTrend(sortedTrends[0]);
         console.log("Selected first trend:", sortedTrends[0]);
       } else {
-        setStepQueue(prev => [...prev, "No trends returned by API"]);
+        setStepQueue((prev: string[]) => [...prev, "No trends returned by API"]);
         console.log("No trends returned by API");
       }
 
-      setStepQueue(prev => [...prev, "Preparing results…"]);
+      setStepQueue((prev: string[]) => [...prev, "Preparing results…"]);
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch trends from API";
@@ -538,12 +558,12 @@ export default function Home() {
   };
 
   const pivotedData = years.map((year) => {
-    const obj = { year };
-    filteredData.forEach((row) => { obj[row.Trend] = row[year]; });
+    const obj: Record<string, number> = {};
+    filteredData.forEach((row) => { obj[row.Trend] = row[year] as number; });
     return obj;
   });
 
-  const handleMouseMove = (state) => {
+  const handleMouseMove = (state: any) => {
     if (state?.activePayload?.[0]) {
       const trendName = state.activePayload[0].dataKey;
       const selected = filteredData.find((row) => row.Trend === trendName);
